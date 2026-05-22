@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Exterstellar",
+  "version": "0.1.0",
+  "description": "Exterstellar is a QoL-focused browser extension for Stardance.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Exterstellar"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.stardance.hackclub.com/*"],
+      "js": [
+        "plugins/registry.js",
+        "plugins/uwu.js",
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "permissions": ["storage"]
+}
