@@ -41,9 +41,11 @@ function buildConfigPanel(plugin) {
       input.className = "cfg-select";
       for (const opt of (field.options ?? [])) {
         const o = document.createElement("option");
-        o.value = opt;
-        o.textContent = opt;
-        if ((pluginConfigs[plugin.id]?.[field.key] ?? field.default) === opt) o.selected = true;
+        const val = typeof opt === "object" ? opt.value : opt;
+        const label = typeof opt === "object" ? opt.label : opt;
+        o.value = val;
+        o.textContent = label;
+        if ((pluginConfigs[plugin.id]?.[field.key] ?? field.default) === val) o.selected = true;
         input.appendChild(o);
       }
     } else {

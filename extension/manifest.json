@@ -14,6 +14,7 @@
         "plugins/registry.js",
         "plugins/better-sidebar.js",
         "plugins/custom-font.js",
+        "plugins/scrollbar.js",
         "content.js"
       ],
       "run_at": "document_start"
