@@ -17,6 +17,12 @@ Exterstellar.register({
       type: "select",
       options: ["Google Fonts", "System Fonts"],
       default: "Google Fonts"
+    },
+    {
+      key: "applyToPopup",
+      label: "Apply font to plugin manager",
+      type: "checkbox",
+      default: true
     }
   ],
 

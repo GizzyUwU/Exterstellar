@@ -48,6 +48,12 @@ function buildConfigPanel(plugin) {
         if ((pluginConfigs[plugin.id]?.[field.key] ?? field.default) === val) o.selected = true;
         input.appendChild(o);
       }
+    } else if (field.type === "checkbox") {
+      input = document.createElement("input");
+      input.className = "cfg-checkbox";
+      input.type = "checkbox";
+      const saved = pluginConfigs[plugin.id]?.[field.key] ?? field.default;
+      input.checked = saved === true || saved === "true";
     } else {
       input = document.createElement("input");
       input.className = "cfg-input";
@@ -58,7 +64,7 @@ function buildConfigPanel(plugin) {
 
     input.addEventListener("change", () => {
       if (!pluginConfigs[plugin.id]) pluginConfigs[plugin.id] = {};
-      pluginConfigs[plugin.id][field.key] = input.value;
+      pluginConfigs[plugin.id][field.key] = field.type === "checkbox" ? input.checked : input.value;
       saveConfigs();
     });
 
@@ -138,6 +144,30 @@ function renderPlugins(plugins) {
     .forEach(p => listEl.appendChild(buildRow(p)));
 }
 
+function applyPopupFont() {
+  const cfg = pluginConfigs["custom-font"];
+  if (!cfg?.applyToPopup) return;
+
+  const fontName = cfg.fontName?.trim() || "Exo 2";
+  if (cfg.source !== "System Fonts") {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;500;600;700&display=swap`;
+    document.head.appendChild(link);
+  }
+
+  const style = document.createElement("style");
+  style.id = "exterstellar-popup-font";
+  style.textContent = `
+    *,
+    *::before,
+    *::after {
+      font-family: "${fontName}", sans-serif !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.pluginManifest) {
     renderPlugins(changes.pluginManifest.newValue);
@@ -151,6 +181,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 chrome.storage.sync.get(["pluginStates", "pluginConfig"], syncData => {
   states = syncData.pluginStates ?? {};
   pluginConfigs = syncData.pluginConfig ?? {};
+  applyPopupFont();
 
   chrome.storage.local.get("pluginManifest", localData => {
     renderPlugins(localData.pluginManifest);

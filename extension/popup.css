@@ -212,3 +212,12 @@ body {
   outline: none;
   border-color: var(--accent);
 }
+
+.cfg-checkbox {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: auto;
+}
