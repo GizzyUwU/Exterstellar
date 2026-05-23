@@ -68,6 +68,7 @@ const SIDEBAR_CSS = `
 
   .sidebar__nav-link--active .sidebar__nav-label {
     color: var(--color-space-text) !important;
+    font-family: "Exo 2", sans-serif;
     font-style: normal !important;
     font-weight: 700 !important;
     font-size: 21px !important;
@@ -128,7 +129,6 @@ const SIDEBAR_CSS = `
   }
 
   .sidebar__nav-label {
-    font-family: "Exo 2", sans-serif !important;
     font-size: 19px;
     font-weight: 500;
     color: var(--color-space-text-muted);
