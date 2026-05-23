@@ -13,6 +13,7 @@
       "js": [
         "plugins/registry.js",
         "plugins/better-sidebar.js",
+        "plugins/pluginconfigtest.js",
         "content.js"
       ],
       "run_at": "document_start"

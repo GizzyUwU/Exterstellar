@@ -1,8 +1,12 @@
-chrome.storage.sync.get("pluginStates", async data => {
+chrome.storage.sync.get(["pluginStates", "pluginConfig"], async data => {
   const states = data.pluginStates ?? {};
+  const configs = data.pluginConfig ?? {};
+
+  Exterstellar.loadConfigs(configs);
+
   const all = Exterstellar.getAll();
 
-  const manifest = all.map(({id, name, description, author}) => ({id, name, description, author}));
+  const manifest = all.map(({id, name, description, author, config}) => ({id, name, description, author, config}));
   try {
     await chrome.storage.local.set({pluginManifest: manifest});
   } catch (err) {

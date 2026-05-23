@@ -37,7 +37,19 @@ const Exterstellar = (() => {
     p._cleanup = null;
   }
 
-  return {register, getAll, activate, deactivate};
+  function getConfig(id) {
+    const p = _store[id];
+    if (!p?.config) return {};
+    const defaults = {};
+    for (const field of p.config) defaults[field.key] = field.default ?? "";
+    return {...defaults, ..._cfgStore[id]};
+  }
+
+  function loadConfigs(allConfigs) {
+    _cfgStore = allConfigs ?? {};
+  }
+
+  return {register, getAll, activate, deactivate, getConfig, loadConfigs};
 })();
 
 window.Exterstellar = Exterstellar;
