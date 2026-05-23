@@ -292,6 +292,188 @@ export default function Home() {
           </p>
         </motion.div>
       </div>
+      
+      <div className="flex flex-col items-center px-6 pb-28">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1 }}
+          viewport={{ once: true }}
+          className="flex flex-col gap-24 w-full max-w-6xl"
+        >
+          <div className="flex flex-col items-center gap-5 text-center">
+            <div className="border border-neutral-700 px-3 py-1 text-xs text-neutral-400 bg-neutral-950/40 rounded-full">
+              Plugins
+            </div>
+
+            <h2 className="text-4xl font-semibold">
+              What ships with Exterstellar
+            </h2>
+
+            <p className="text-neutral-400 max-w-2xl leading-7">
+              Exterstellar ships with plugins designed to improve the Stardance
+              experience while keeping everything familiar and easy to use.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-4 text-center items-center">
+              <h3 className="text-3xl font-medium">
+                Better Sidebar
+              </h3>
+
+              <p className="text-neutral-400 max-w-2xl leading-7">
+                Simplifies and redesigns the Stardance sidebar with a cleaner and
+                more focused layout.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 overflow-hidden max-w-5xl mx-auto">
+              <img
+                src="/plugins/better-sidebar.png"
+                alt="Better Sidebar Plugin"
+                className="w-full"
+              />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto items-start">
+              <div className="flex flex-col gap-3">
+                <p className="text-center text-sm text-neutral-500 tracking-wide">
+                  BEFORE
+                </p>
+
+                <div className="rounded-2xl border border-neutral-800 overflow-hidden">
+                  <img
+                    src="/plugins/better-sidebar-before.png"
+                    alt="Better Sidebar Before"
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <p className="text-center text-sm text-neutral-500 tracking-wide">
+                  AFTER
+                </p>
+
+                <div className="rounded-2xl border border-neutral-800 overflow-hidden">
+                  <img
+                    src="/plugins/better-sidebar-after.png"
+                    alt="Better Sidebar After"
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-4 text-center items-center">
+              <h3 className="text-3xl font-medium">
+                Custom Font
+              </h3>
+
+              <p className="text-neutral-400 max-w-2xl leading-7">
+                Apply fonts from Google Fonts or your own system across Stardance.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+              <div className="flex flex-col gap-3">
+                <p className="text-center text-sm text-neutral-500 tracking-wide">
+                  GOOGLE FONTS
+                </p>
+
+                <div className="rounded-2xl border border-neutral-800 overflow-hidden">
+                  <img
+                    src="/plugins/custom-font-google.png"
+                    alt="Google Fonts"
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <p className="text-center text-sm text-neutral-500 tracking-wide">
+                  SYSTEM FONTS
+                </p>
+
+                <div className="rounded-2xl border border-neutral-800 overflow-hidden">
+                  <img
+                    src="/plugins/custom-font-system.png"
+                    alt="System Fonts"
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+            </div>
+
+            <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-4 text-center items-center">
+              <h3 className="text-3xl font-medium">
+                Custom Scrollbar
+              </h3>
+
+              <p className="text-neutral-400 max-w-2xl leading-7">
+                Style Stardance scrollbars with multiple color options.
+              </p>
+            </div>
+
+            <div className="grid lg:grid-cols-[1.3fr_0.7fr] gap-10 items-center max-w-6xl mx-auto">
+              {/* Plugin UI */}
+              <div className="rounded-2xl border border-neutral-800 overflow-hidden">
+                <img
+                  src="/plugins/custom-scrollbar.png"
+                  alt="Custom Scrollbar Plugin"
+                  className="w-full"
+                />
+              </div>
+
+              {/* Result */}
+              <div className="flex flex-col gap-5 items-center">
+                <p className="text-center text-sm text-neutral-500 tracking-wide">
+                  DEFAULT → LAVENDER
+                </p>
+
+                <div className="flex items-center gap-5">
+                  <div className="flex flex-col gap-2 items-center">
+                    <span className="text-xs text-neutral-500 tracking-wide">
+                      DEFAULT
+                    </span>
+
+                    <div className="rounded-2xl border border-neutral-800 overflow-hidden p-4">
+                      <img
+                        src="/plugins/custom-scrollbar-default.png"
+                        alt="Default Scrollbar"
+                        className="h-[260px] object-contain"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="text-neutral-600 text-xl">
+                    →
+                  </div>
+
+                  <div className="flex flex-col gap-2 items-center">
+                    <span className="text-xs text-neutral-500 tracking-wide">
+                      LAVENDER
+                    </span>
+
+                    <div className="rounded-2xl border border-neutral-800 overflow-hidden p-4">
+                      <img
+                        src="/plugins/custom-scrollbar-lavender.png"
+                        alt="Lavender Scrollbar"
+                        className="h-[260px] object-contain"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
 
       <footer className="border-t border-neutral-900/80 px-6 py-8 text-center text-sm text-neutral-400">
         <p>Exterstellar • Built for Stardance</p>
