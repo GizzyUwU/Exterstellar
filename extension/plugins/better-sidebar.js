@@ -71,7 +71,7 @@ const SIDEBAR_CSS = `
     font-family: "Exo 2", sans-serif;
     font-style: normal !important;
     font-weight: 700 !important;
-    font-size: 21px !important;
+    font-size: 21px;
   }
 
   .sidebar__nav-link--active .sidebar__nav-icon-wrapper {
@@ -134,6 +134,7 @@ const SIDEBAR_CSS = `
     color: var(--color-space-text-muted);
     letter-spacing: 0.01em;
     text-transform: capitalize;
+    transition: all 200ms;
   }
 
   .sidebar__nav-link:hover:not([aria-disabled="true"]) .sidebar__nav-label {
