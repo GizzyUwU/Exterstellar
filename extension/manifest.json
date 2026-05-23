@@ -12,7 +12,7 @@
       "matches": ["https://*.stardance.hackclub.com/*"],
       "js": [
         "plugins/registry.js",
-        "plugins/uwu.js",
+        "plugins/better-sidebar.js",
         "content.js"
       ],
       "run_at": "document_start"
