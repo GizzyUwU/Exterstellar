@@ -16,4 +16,12 @@ chrome.storage.sync.get(["pluginStates", "pluginConfig"], async data => {
   for (const plugin of all) {
     if (states[plugin.id] === true) Exterstellar.activate(plugin.id);
   }
+
+  // removes any preloaded sytles belonging to plugins that are currently off
+  for (const plugin of all) {
+    if (states[plugin.id] !== true) {
+      document.getElementById(`exterstellar-${plugin.id}`)?.remove();
+      sessionStorage.removeItem(`_ext_${plugin.id}_pre`);
+    }
+  }
 });

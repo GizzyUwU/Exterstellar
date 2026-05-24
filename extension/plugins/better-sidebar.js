@@ -3,10 +3,27 @@ Exterstellar.register({
   name: "Better Sidebar",
   description: "Redesigns the sidebar to look visually better.",
   author: "Sabio",
+  config: [
+    {
+      key: "preload",
+      label: "Preload before paint",
+      type: "checkbox",
+      default: true
+    }
+  ],
   start() {
-    const style = document.createElement("style");
-    style.id = "exterstellar-better-sidebar";
-    style.textContent = SIDEBAR_CSS;
+    const cfg = Exterstellar.getConfig("better-sidebar");
+    const preload = cfg.preload !== false && cfg.preload !== "false";
+
+    sessionStorage.setItem("_ext_better-sidebar_pre", preload ? "1" : "0");
+
+    // if already preloaded, then dont create a new style element
+    let style = document.getElementById("exterstellar-better-sidebar");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "exterstellar-better-sidebar";
+      style.textContent = SIDEBAR_CSS;
+    }
     document.head.appendChild(style);
 
     return function cleanup() {
@@ -49,7 +66,7 @@ const SIDEBAR_CSS = `
     border-radius: 12px;
     padding: 9px 12px;
     width: 100%;
-    transition: all 200ms ease;
+    transition: background 200ms ease;
     position: relative;
     text-decoration: none !important;
     cursor: pointer;
@@ -102,7 +119,7 @@ const SIDEBAR_CSS = `
     justify-content: center;
     overflow: hidden;
     position: relative;
-    transition: all 200ms;
+    transition: background 200ms;
   }
 
   .sidebar__nav-icon {
@@ -134,7 +151,7 @@ const SIDEBAR_CSS = `
     color: var(--color-space-text-muted);
     letter-spacing: 0.01em;
     text-transform: capitalize;
-    transition: all 200ms;
+    transition: font-size 200ms;
   }
 
   .sidebar__nav-link:hover:not([aria-disabled="true"]) .sidebar__nav-label {
@@ -152,3 +169,10 @@ const SIDEBAR_CSS = `
     display: block;
   }
 `;
+
+if (sessionStorage.getItem("_ext_better-sidebar_pre") === "1") {
+  const pre = document.createElement("style");
+  pre.id = "exterstellar-better-sidebar";
+  pre.textContent = SIDEBAR_CSS;
+  document.documentElement.appendChild(pre);
+}
