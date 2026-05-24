@@ -15,6 +15,7 @@
         "plugins/better-sidebar.js",
         "plugins/custom-font.js",
         "plugins/scrollbar.js",
+        "plugins/devlog-formatter.js",
         "content.js"
       ],
       "run_at": "document_start"
