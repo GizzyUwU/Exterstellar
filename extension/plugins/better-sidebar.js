@@ -37,6 +37,7 @@ const SIDEBAR_CSS = `
     background: var(--color-space-bg) !important;
     border-right: 2px solid var(--color-space-surface-faint) !important;
     padding-inline: 10px;
+    padding-right: 26px;
   }
 
   .sidebar__logo {
