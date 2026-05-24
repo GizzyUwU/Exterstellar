@@ -3,6 +3,11 @@
   "name": "Exterstellar",
   "version": "0.1.0",
   "description": "Exterstellar is a QoL-focused browser extension for Stardance.",
+  "icons": {
+    "16": "images/16.png",
+    "48": "images/48.png",
+    "128": "images/128.png"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "Exterstellar"
