@@ -17,6 +17,7 @@
         "plugins/scrollbar.js",
         "plugins/devlog-formatter.js",
         "plugins/sidebar-hotkeys.js",
+        "plugins/sidebar-reorder.js",
         "content.js"
       ],
       "run_at": "document_start"
