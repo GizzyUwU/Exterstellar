@@ -1,0 +1,28 @@
+name: "Build Extension .zip"
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Zip extension
+        run: |
+          cd extension
+          zip -rq ../macondoplus-use-this-in-extensions-page.zip .
+      - name: Set short SHA
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macondoplus-${{env.SHORT_SHA}}-unzip
+          path: macondoplus-use-this-in-extensions-page.zip
