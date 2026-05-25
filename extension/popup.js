@@ -29,6 +29,8 @@ function buildToggle(id, checked) {
 
 function buildConfigPanel(plugin) {
   const panel = el("div", "cfg-panel");
+  const inputsByKey = {};
+  const rowsByKey = {};
 
   for (const field of plugin.config) {
     const cfgRow = el("div", "cfg-row");
@@ -68,8 +70,21 @@ function buildConfigPanel(plugin) {
       saveConfigs();
     });
 
+    inputsByKey[field.key] = input;
+    rowsByKey[field.key] = cfgRow;
     cfgRow.append(lbl, input);
     panel.appendChild(cfgRow);
+  }
+
+  for (const field of plugin.config) {
+    if (!field.showIf) continue;
+    const row = rowsByKey[field.key];
+    const guard = inputsByKey[field.showIf.key];
+    if (!row || !guard) continue;
+
+    const sync = () => {row.style.display = guard.value === field.showIf.value ? "" : "none";};
+    sync();
+    guard.addEventListener("change", sync);
   }
 
   return panel;

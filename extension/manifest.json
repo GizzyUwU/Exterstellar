@@ -23,6 +23,7 @@
         "plugins/devlog-formatter.js",
         "plugins/sidebar-hotkeys.js",
         "plugins/sidebar-reorder.js",
+        "plugins/themes.js",
         "content.js"
       ],
       "run_at": "document_start"
