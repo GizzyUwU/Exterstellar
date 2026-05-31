@@ -23,7 +23,7 @@ Exterstellar.register({
         {value: "mocha", label: "Mocha"},
         {value: "macchiato", label: "Macchiato"},
         {value: "frappe", label: "Frappe"},
-        // {value: "latte", label: "Latte"} (latte is really broken holy)
+        {value: "latte", label: "Latte (WIP)"} // (latte is really broken holy)
       ],
       default: "mocha"
     },
@@ -49,6 +49,13 @@ Exterstellar.register({
         {value: "lavender", label: "Lavender"},
       ],
       default: "mauve"
+    },
+    {
+      key: "accentAll",
+      label: "Use accent color for all colors",
+      type: "checkbox",
+      showIf: {key: "theme", value: "catppuccin"},
+      default: false
     }
   ],
 
@@ -62,6 +69,7 @@ Exterstellar.register({
 
     const flavor = cfg.flavor || "mocha";
     const accent = cfg.accent || "mauve";
+    const accentAll = cfg.accentAll ?? false;
 
     const base = THEME_PALLETES[theme]?.[flavor];
     if (!base) {
@@ -74,9 +82,12 @@ Exterstellar.register({
     if (accentHex) {
       vars["--color-space-accent"] = accentHex;
       vars["--color-space-accent-soft"] = `rgb(${hexToRgb(accentHex)} / 0.18)`;
+      if (accentAll) {
+        Object.assign(vars, deriveAccentPalette(accentHex));
+      }
     }
 
-    sessionStorage.setItem("_ext_themes_pre", `${theme}:${flavor}`);
+    sessionStorage.setItem("_ext_themes_pre", `${theme}:${flavor}:${accent}:${accentAll ? "1" : "0"}`);
 
     let style = document.getElementById("exterstellar-themes");
     if (!style) {
@@ -99,6 +110,32 @@ function hexToRgb(hex) {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `${r} ${g} ${b}`;
+}
+
+function deriveAccentPalette(accentHex) {
+  const rgb = hexToRgb(accentHex);
+  return {
+    "--color-brand-mint": accentHex,
+    "--color-brand-lilac": accentHex,
+    "--color-brand-blue": accentHex,
+    "--color-brand-salmon": accentHex,
+    "--color-brand-yellow": accentHex,
+    "--color-brand-peach": accentHex,
+    "--color-brand-orange": accentHex,
+    "--color-brand-cream": accentHex,
+    "--color-brand-ivory": accentHex,
+    "--color-brand-off-white": accentHex,
+    "--color-brand-highlight": accentHex,
+    "--color-brand-highlight-secondary": accentHex,
+    "--color-brand-highlight-soft": `rgb(${rgb} / 0.4)`,
+    "--color-brand-highlight-faint": `rgb(${rgb} / 0.12)`,
+    "--color-brand-mint-soft": `rgb(${rgb} / 0.18)`,
+    "--color-brand-lilac-soft": `rgb(${rgb} / 0.18)`,
+    "--color-brand-salmon-soft": `rgb(${rgb} / 0.18)`,
+    "--color-brand-yellow-soft": `rgb(${rgb} / 0.18)`,
+    "--color-brand-orange-soft": `rgb(${rgb} / 0.18)`,
+    "--color-yellow-200": accentHex,  
+  }
 }
 
 const THEME_PALLETES = {
@@ -219,14 +256,17 @@ const CATPPUCCIN_ACCENTS = {
 
 const _preKey = sessionStorage.getItem("_ext_themes_pre");
 if (_preKey) {
-  const [_t, _f, _a] = _preKey.split(":");
-  const _base = THEME_PALETTES[_t]?.[_f];
+  const [_t, _f, _a, _aa] = _preKey.split(":");
+  const _base = THEME_PALLETES[_t]?.[_f];
   if (_base) {
     const _vars = { ..._base };
     const _accentHex = CATPPUCCIN_ACCENTS[_f]?.[_a];
     if (_accentHex) {
       _vars["--color-space-accent"] = _accentHex;
       _vars["--color-space-accent-soft"] = `rgb(${hexToRgb(_accentHex)} / 0.18)`;
+      if (_aa === "1") {
+        Object.assign(_vars, deriveAccentPalette(_accentHex));
+      }
     }
     const s = document.createElement("style");
     s.id = "exterstellar-themes";
