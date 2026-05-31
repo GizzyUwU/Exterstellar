@@ -20,8 +20,8 @@ Exterstellar.register({
       label: "Key scheme",
       type: "select",
       options: [
-        {value: "letters", name: "Letters"},
-        {value: "numbers", name: "Numbers"}
+        {value: "letters", label: "Letters"},
+        {value: "numbers", label: "Numbers"}
       ],
       default: "numbers"
     },

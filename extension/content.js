@@ -1,6 +1,9 @@
+let _activeStates = {};
+
 chrome.storage.sync.get(["pluginStates", "pluginConfig"], async data => {
   const states = data.pluginStates ?? {};
   const configs = data.pluginConfig ?? {};
+  _activeStates = {...states};
 
   Exterstellar.loadConfigs(configs);
 
@@ -24,4 +27,44 @@ chrome.storage.sync.get(["pluginStates", "pluginConfig"], async data => {
       sessionStorage.removeItem(`_ext_${plugin.id}_pre`);
     }
   }
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "sync") return;
+
+    if (changes.pluginConfig) {
+      const newConfigs = changes.pluginConfig.newValue ?? {};
+      Exterstellar.loadConfigs(newConfigs);
+
+      const oldConfigs = changes.pluginConfig.oldValue ?? {};
+      for (const plugin of Exterstellar.getAll()) {
+        if (!_activeStates[plugin.id]) continue;
+        const oldSer = JSON.stringify(oldConfigs[plugin.id] ?? {});
+        const newSer = JSON.stringify(newConfigs[plugin.id] ?? {});
+        if (oldSer === newSer) continue;
+
+        Exterstellar.deactivate(plugin.id);
+        Exterstellar.activate(plugin.id);
+      }
+    }
+
+    if (changes.pluginStates) {
+      const newStates = changes.pluginStates.newValue ?? {};
+
+      for (const plugin of Exterstellar.getAll()) {
+        const wasOn = _activeStates[plugin.id] === true;
+        const isOn = newStates[plugin.id] === true;
+        if (wasOn === isOn) continue;
+
+        if (isOn) {
+          Exterstellar.activate(plugin.id);
+        } else {
+          Exterstellar.deactivate(plugin.id);
+          document.getElementById(`exterstellar-${plugin.id}`)?.remove();
+          sessionStorage.removeItem(`_ext_${plugin.id}_pre`);
+        }
+      }
+
+      _activeStates = {...newStates};
+    }
+  });
 });

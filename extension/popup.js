@@ -19,7 +19,6 @@ function buildToggle(id, checked) {
   input.addEventListener("change", () => {
     states[id] = input.checked;
     save();
-    // TODO: do something to not require a page refresh :3
   });
 
   const track = el("div", "track");

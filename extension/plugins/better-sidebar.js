@@ -169,6 +169,10 @@ const SIDEBAR_CSS = `
     height: 12px;
     display: block;
   }
+
+  .sidebar__nav-notify-dot {
+    margin-left: auto;
+  }
 `;
 
 if (sessionStorage.getItem("_ext_better-sidebar_pre") === "1") {
