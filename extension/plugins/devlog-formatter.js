@@ -83,7 +83,8 @@ Exterstellar.register({
       if (field.querySelector(".fmt-bar")) return;
       const ta = field.querySelector(".feed-composer__textarea");
       if (!ta) return;
-      ta.parentNode.insertBefore(buildBar(ta, showLabels), ta);
+      const dest = field.querySelector(".mdp-wrap") || ta;
+      dest.parentNode.insertBefore(buildBar(ta, showLabels), dest);
       field.classList.add("has-fmt-bar");
     }
 
