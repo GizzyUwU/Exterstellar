@@ -17,12 +17,12 @@ jobs:
       - name: Zip extension
         run: |
           cd extension
-          zip -rq ../macondoplus-use-this-in-extensions-page.zip .
+          zip -rq ../exterstellar-use-this-in-extensions-page.zip .
       - name: Set short SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macondoplus-${{env.SHORT_SHA}}-unzip
-          path: macondoplus-use-this-in-extensions-page.zip
+          name: exterstellar-${{env.SHORT_SHA}}-unzip
+          path: exterstellar-use-this-in-extensions-page.zip
