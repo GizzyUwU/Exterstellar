@@ -24,6 +24,7 @@
         "plugins/sidebar-hotkeys.js",
         "plugins/sidebar-reorder.js",
         "plugins/themes.js",
+        "plugins/md-preview.js",
         "content.js"
       ],
       "run_at": "document_start"
