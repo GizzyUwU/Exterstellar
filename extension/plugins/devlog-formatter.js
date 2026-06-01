@@ -87,6 +87,8 @@ Exterstellar.register({
       field.classList.add("has-fmt-bar");
     }
 
+    document.querySelectorAll(".feed-composer__field").forEach(inject);
+
     const observer = new MutationObserver(mutations => {
       for (const m of mutations) {
         for (const node of m.addedNodes) {
