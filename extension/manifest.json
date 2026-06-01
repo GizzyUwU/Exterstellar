@@ -25,12 +25,17 @@
         "plugins/sidebar-reorder.js",
         "plugins/themes.js",
         "plugins/md-preview.js",
+        "plugins/devlog-changelog.js",
         "content.js"
       ],
       "run_at": "document_start"
     }
   ],
   "permissions": ["storage"],
+  "host_permissions": [
+    "https://api.github.com/*",
+    "https://gitlab.com/*"
+  ],
   "browser_specific_settings": {
     "gecko": {
       "id": "exterstellar@extension",
