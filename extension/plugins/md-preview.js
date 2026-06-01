@@ -18,7 +18,7 @@ Exterstellar.register({
 
     const style = document.createElement("style");
     style.id = "exterstellar-md-preview";
-    style.textContent = buildPreviewCSS(dimRaw);
+    style.textContent = buildPreviewCSS(dimRaw, 480);
     document.head.appendChild(style);
 
     const instances = new Map();
@@ -28,45 +28,49 @@ Exterstellar.register({
 
       const wrapper = document.createElement("div");
       wrapper.className = "mdp-wrap";
-
       ta.parentNode.insertBefore(wrapper, ta);
-      wrapper.appendChild(ta);
 
       const overlay = document.createElement("div");
       overlay.className = "mdp-overlay";
       overlay.setAttribute("aria-hidden", "true");
       wrapper.appendChild(overlay);
+      wrapper.appendChild(ta);
 
       function syncStyles() {
         const cs = getComputedStyle(ta);
         const props = [
           "fontSize", "fontFamily", "fontWeight", "lineHeight", "letterSpacing", "paddingTop", "paddingLeft", "paddingRight", "paddingBottom", "borderTopWidth",
-          "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "boxSizing", "textAlign", "wordBreak", "overflowWrap",
+          "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "boxSizing", "textAlign", "wordBreak", "overflowWrap", "whiteSpace",
         ];
         for (const p of props) overlay.style[p] = cs[p];
-        wrapper.style.height = ta.offsetHeight + "px";
+        overlay.style.width = ta.clientWidth + "px";
+      }
+
+      function syncScroll() {
+        overlay.scrollTop = ta.scrollTop;
       }
 
       function sync() {
         overlay.innerHTML = renderMd(ta.value);
-        wrapper.style.height = ta.style.height || "";
+        overlay.scrollTop = ta.scrollTop;
       }
 
       ta.addEventListener("input", sync);
-      ta.addEventListener("scroll", () => {overlay.scrollTop = ta.scrollTop;});
+      ta.addEventListener("scroll", syncScroll);
 
-      const ro = new ResizeObserver(() => {syncStyles();});
+      const ro = new ResizeObserver(syncStyles);
       ro.observe(ta);
 
       syncStyles();
       sync();
-      instances.set(ta, {overlay, wrapper, ro});
+      instances.set(ta, {overlay, wrapper, ro, syncScroll});
     }
 
     function detach(ta) {
       const inst = instances.get(ta);
       if (!inst) return;
       inst.ro.disconnect();
+      ta.removeEventListener("scroll", inst.syncScroll);
       inst.overlay.remove();
       inst.wrapper.parentNode.insertBefore(ta, inst.wrapper);
       inst.wrapper.remove();
@@ -129,24 +133,34 @@ function renderMd(raw) {
   s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,
     `<span class="mdp-link"><span class="mdp-syntax">[</span>$1<span class="mdp-syntax">](</span><span class="mdp-url">$2</span><span class="mdp-syntax">)</span></span>`
   );
-  
+
   s = s.replace(/\n/g, "<br>");
   return s;
 }
 
-function buildPreviewCSS(dimRaw) {
+function buildPreviewCSS(dimRaw, maxH) {
   return `
     .mdp-wrap {
-      position: relative;
-      display: block;
+      display: grid;
+      max-height: ${maxH}px;
+      overflow: hidden;
+    }
+
+    .mdp-wrap > * {
+      grid-area: 1 / 1;
     }
 
     .mdp-wrap .feed-composer__textarea {
       position: relative;
       z-index: 2;
+      align-self: start;
+      max-height: ${maxH}px !important;
       color: transparent !important;
       caret-color: var(--color-space-text) !important;
       background: transparent !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      resize: none;
     }
 
     ${dimRaw ? `
@@ -157,15 +171,14 @@ function buildPreviewCSS(dimRaw) {
     ` : ""}
 
     .mdp-overlay {
-      position: absolute;
-      inset:0;
+      position: relative;
       z-index: 1;
+      align-self: start;
       pointer-events: none;
-      overflow: hidden;
+      max-height: ${maxH}px;
+      overflow-y: hidden;
+      overflow-x: hidden;
       color: var(--color-space-text);
-      white-space: pre-wrap;
-      overflow-wrap: break-word;
-      word-break: break-word;
       box-sizing: border-box;
     }
 
@@ -188,10 +201,10 @@ function buildPreviewCSS(dimRaw) {
       text-decoration: underline;
       text-underline-offset: 2px;
     }
-    
+
     .mdp-li {display: inline;}
     .mdp-li .mdp-syntax {
-      color: var(--color-space-accent)
+      color: var(--color-space-accent);
       opacity: 0.9;
     }
     .mdp-bullet {font-style:normal;}
