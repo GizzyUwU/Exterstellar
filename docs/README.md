@@ -20,3 +20,9 @@ Exterstellar is currently not on any store yet, so you'll have to load it manual
 2. Download the latest version from the [workflow](https://github.com/Team-Exterstellar/Exterstellar/actions/workflows/build-extension-zip.yml).
 4. Unzip it once.
 5. Click **Load Temporary Add-on...** and select the use-this...zip file.
+
+## Plugins
+
+Plugins are the features you can toggle on and off for Exterstellar. There are many built-in ones you can choose from. The list of all the plugins is available below:
+
+(readme section coming soon)
