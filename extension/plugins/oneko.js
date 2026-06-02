@@ -5,7 +5,11 @@ Exterstellar.register({
     author: "Gizzy",
     start() {
         // oneko.js: https://github.com/adryd325/oneko.js
-        if (document.getElementById("oneko")) return;
+        // Remove any existing neko element to force reinit on page change
+        const existingNeko = document.getElementById("oneko");
+        if (existingNeko) {
+            existingNeko.remove();
+        }
 
         const nekoEl = document.createElement("div");
 
@@ -85,20 +89,38 @@ Exterstellar.register({
         };
 
         let lastFrameTimestamp;
+        let mouseListener = null;
 
         function onAnimationFrame(timestamp) {
+            // If element was removed from DOM (page navigation), re-add it
             if (!nekoEl.isConnected) {
-                return;
+                if (document.body) {
+                    document.body.appendChild(nekoEl);
+                    // Re-add mouse listener if it was removed
+                    if (!mouseListener) {
+                        mouseListener = function (event) {
+                            mousePosX = event.clientX;
+                            mousePosY = event.clientY;
+                        };
+                        document.addEventListener("mousemove", mouseListener);
+                    }
+                }
             }
-            if (!lastFrameTimestamp) {
-                lastFrameTimestamp = timestamp;
+            
+            if (nekoEl.isConnected) {
+                if (!lastFrameTimestamp) {
+                    lastFrameTimestamp = timestamp;
+                }
+                if (timestamp - lastFrameTimestamp > 100) {
+                    lastFrameTimestamp = timestamp
+                    frame()
+                }
             }
-            if (timestamp - lastFrameTimestamp > 100) {
-                lastFrameTimestamp = timestamp
-                frame()
-            }
+            
             window.requestAnimationFrame(onAnimationFrame);
         }
+
+        let animationFrameId = null;
 
         function setSprite(name, frame) {
             const sprite = spriteSets[name][frame % spriteSets[name].length];
@@ -178,6 +200,8 @@ Exterstellar.register({
 
         function explodeHearts() {
             const parent = nekoEl.parentElement;
+            if (!parent || !nekoEl.isConnected) return;
+            
             const rect = nekoEl.getBoundingClientRect();
             const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
             const scrollTop = window.scrollY || document.documentElement.scrollTop;
@@ -199,7 +223,9 @@ Exterstellar.register({
                 heart.draggable = false;
                 parent.appendChild(heart);
                 setTimeout(() => {
-                    parent.removeChild(heart);
+                    if (parent.contains(heart)) {
+                        parent.removeChild(heart);
+                    }
                 }, 1000);
             }
         }
@@ -280,13 +306,38 @@ Exterstellar.register({
         }
         nekoEl.style.backgroundImage = `url(${nekoFile})`;
 
-        document.body.appendChild(nekoEl);
+        if (document.body) {
+            document.body.appendChild(nekoEl);
+            mouseListener = function (event) {
+                mousePosX = event.clientX;
+                mousePosY = event.clientY;
+            };
+            document.addEventListener("mousemove", mouseListener);
+            animationFrameId = window.requestAnimationFrame(onAnimationFrame);
+        } else {
+            document.addEventListener('DOMContentLoaded', () => {
+                if (!document.getElementById("oneko") && document.body) {
+                    document.body.appendChild(nekoEl);
+                    mouseListener = function (event) {
+                        mousePosX = event.clientX;
+                        mousePosY = event.clientY;
+                    };
+                    document.addEventListener("mousemove", mouseListener);
+                    animationFrameId = window.requestAnimationFrame(onAnimationFrame);
+                }
+            });
+        }
 
-        document.addEventListener("mousemove", function (event) {
-            mousePosX = event.clientX;
-            mousePosY = event.clientY;
-        });
-
-        window.requestAnimationFrame(onAnimationFrame);
+        return () => {
+            if (nekoEl.isConnected) {
+                nekoEl.remove();
+            }
+            if (mouseListener) {
+                document.removeEventListener("mousemove", mouseListener);
+            }
+            if (animationFrameId) {
+                window.cancelAnimationFrame(animationFrameId);
+            }
+        };
     }
 })
