@@ -134,7 +134,7 @@ function renderMd(raw) {
     `<span class="mdp-link"><span class="mdp-syntax">[</span>$1<span class="mdp-syntax">](</span><span class="mdp-url">$2</span><span class="mdp-syntax">)</span></span>`
   );
 
-  s = s.replace(/^(---|\*\*\*|___)$/gm,
+  s = s.replace(/^(---|\*\*\*|___)(\n|$)/gm,
     `<span class="mdp-hr"><span class="mdp-syntax">$1</span></span>`
   );
 
