@@ -1,0 +1,19 @@
+{
+  "name": "extension",
+  "version": "1.0.0",
+  "description": "",
+  "main": "content.js",
+  "scripts": {
+    "build": "esbuild plugins/comment-markdown.js --bundle --outfile=plugins/comment-markdown.bundle.js",
+    "watch": "esbuild plugins/comment-markdown.js --bundle --outfile=plugins/comment-markdown.bundle.js --watch",
+    "zip": "npm run build && zip -r extension.zip . --exclude 'node_modules/*' --exclude '.git/*'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "esbuild": "^0.28.0",
+    "marked": "^18.0.4"
+  }
+}

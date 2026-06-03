@@ -29,6 +29,7 @@
         "plugins/themes.js",
         "plugins/md-preview.js",
         "plugins/devlog-changelog.js",
+        "plugins/comment-markdown.bundle.js",
         "content.js"
       ],
       "run_at": "document_start"
