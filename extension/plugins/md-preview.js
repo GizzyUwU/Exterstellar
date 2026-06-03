@@ -134,6 +134,10 @@ function renderMd(raw) {
     `<span class="mdp-link"><span class="mdp-syntax">[</span>$1<span class="mdp-syntax">](</span><span class="mdp-url">$2</span><span class="mdp-syntax">)</span></span>`
   );
 
+  s = s.replace(/^(---|\*\*\*|___)$/gm,
+    `<span class="mdp-hr"><span class="mdp-syntax">$1</span></span>`
+  );
+
   s = s.replace(/\n/g, "<br>");
   return s;
 }
@@ -208,5 +212,20 @@ function buildPreviewCSS(dimRaw, maxH) {
       opacity: 0.9;
     }
     .mdp-bullet {font-style:normal;}
-  `
+
+    .mdp-hr {
+      display: block;
+      position: relative;
+    }
+    .mdp-hr::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      border-top: 1px solid currentColor;
+      opacity: 0.25;
+    }
+    .mdp-hr .mdp-syntax {opacity: 0.1;}
+  `;
 }
