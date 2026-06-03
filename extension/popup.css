@@ -191,6 +191,18 @@ body {
   font-size: 12px;
   color: #a1a1aa;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.cfg-row:hover .cfg-label {
+  white-space: normal;
+}
+
+.cfg-row:hover {
+  align-items: flex-start;
 }
 
 .cfg-input,

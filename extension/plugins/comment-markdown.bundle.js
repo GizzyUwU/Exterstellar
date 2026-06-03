@@ -1260,8 +1260,37 @@ Please report this to https://github.com/markedjs/marked.`, e) {
         name: "Comment Markdown",
         description: "Renders markdown in comments.",
         author: "Sabio",
+        config: [
+          {
+            key: "advertise",
+            label: "Add 'Use Exterstellar for comment markdown.' to comments using markdown.",
+            type: "checkbox",
+            default: false
+          }
+        ],
         start() {
           g.use({ breaks: true });
+          const cfg = Exterstellar.getConfig("comment-markdown");
+          const advertise = cfg.advertise === true || cfg.advertise === "true";
+          function looksLikeMd(text) {
+            return /(\*{1,3}|#{1,3} |^[-*] |\[.+\]\()/m.test(text);
+          }
+          const formListeners = [];
+          function attachFormHook(form) {
+            if (form.dataset.cmHooked) return;
+            const ta = form.querySelector(".devlog-detail__comment-textarea");
+            if (!ta) return;
+            const suffix = " (Use Exterstellar for comment markdown.)";
+            function onSubmit(e) {
+              if (!advertise) return;
+              if (!looksLikeMd(ta.value)) return;
+              if (!ta.value.endsWith(suffix)) ta.value += suffix;
+            }
+            form.addEventListener("submit", onSubmit);
+            formListeners.push({ form, onSubmit });
+            form.dataset.cmHooked = "1";
+          }
+          document.querySelectorAll(".devlog-detail__comment-form").forEach(attachFormHook);
           const style = document.createElement("style");
           style.id = "exterstellar-comment-markdown";
           style.textContent = `
@@ -1315,6 +1344,8 @@ Please report this to https://github.com/markedjs/marked.`, e) {
                 if (node instanceof Element) {
                   if (node.matches(".devlog-comment__body")) renderBody(node);
                   node.querySelectorAll(".devlog-comment__body").forEach(renderBody);
+                  if (node.matches(".devlog-detail__comment-form")) attachFormHook(node);
+                  node.querySelectorAll(".devlog-detail__comment-form").forEach(attachFormHook);
                 }
           });
           observer.observe(document.documentElement, { childList: true, subtree: true });
@@ -1326,6 +1357,10 @@ Please report this to https://github.com/markedjs/marked.`, e) {
               delete body.dataset.cmDone;
             }
             style.remove();
+            for (const { form, onSubmit } of formListeners) {
+              form.removeEventListener("submit", onSubmit);
+              delete form.dataset.cmHooked;
+            }
           };
         }
       });
