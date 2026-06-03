@@ -15,7 +15,7 @@ Exterstellar.register({
       key: "manualSelection",
       label: "Use commit-range selector",
       type: "checkbox",
-      default: false
+      default: true
     },
     {
       key: "maxCommits",
@@ -229,7 +229,7 @@ Exterstellar.register({
     }
 
     async function fetchCommitRange(repoInfo, from, to, token) {
-      if (repoInfo.type !== "github") throw new Error("Commit-range mode only supports GitHub.");
+      if (repoInfo.type !== "github") throw new Error("Commit-range mode only supports GitHub. Disable commit-range mode in the plugin settings.");
       const headers = {Accept: "application/vnd.github+json"};
       if (token) headers.Authorization = `Bearer ${token}`;
 
