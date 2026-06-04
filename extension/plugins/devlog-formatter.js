@@ -76,6 +76,23 @@ Exterstellar.register({
         margin: 0 3px;
         flex-shrink: 0;
       }
+
+      .devlog-detail__comment-input-row {
+        flex-direction: column;
+      }
+
+      .devlog-detail__comment-input-row .fmt-bar {
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 0;
+        border-radius: 8px 8px 0 0;
+      }
+
+      .devlog-detail__comment-input-row .mdp-wrap,
+      .devlog-detail__comment-input-row .devlog-detail__comment-textarea {
+        width: 100%;
+        box-sizing: border-box;
+      }
     `;
     document.head.appendChild(style);
 
@@ -104,6 +121,8 @@ Exterstellar.register({
     document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".feed-composer__field").forEach(inject);
     }, {once: true});
+
+    Exterstellar._exports["devlog-formatter"] = {buildBar, inject};
 
     return function cleanup() {
       observer.disconnect();

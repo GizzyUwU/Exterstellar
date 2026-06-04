@@ -16,6 +16,11 @@ chrome.storage.sync.get(["pluginStates", "pluginConfig"], async data => {
     throw new Error("[Exterstellar | Plugin Registrar] Failed to write plugin manifest to session: " + err.message);
   }
 
+  Exterstellar._exports = {};
+  Exterstellar.getExport = function(id) {
+    return Exterstellar._exports?.[id] ?? null;
+  };
+
   for (const plugin of all) {
     if (states[plugin.id] === true) Exterstellar.activate(plugin.id);
   }
@@ -59,6 +64,7 @@ chrome.storage.sync.get(["pluginStates", "pluginConfig"], async data => {
           Exterstellar.activate(plugin.id);
         } else {
           Exterstellar.deactivate(plugin.id);
+          delete Exterstellar._exports[plugin.id];
           document.getElementById(`exterstellar-${plugin.id}`)?.remove();
           sessionStorage.removeItem(`_ext_${plugin.id}_pre`);
         }

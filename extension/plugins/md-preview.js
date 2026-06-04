@@ -36,6 +36,8 @@ Exterstellar.register({
       wrapper.appendChild(overlay);
       wrapper.appendChild(ta);
 
+      const isAutogrow = ta.dataset.action?.includes("autogrow");
+
       function syncStyles() {
         const cs = getComputedStyle(ta);
         const props = [
@@ -44,33 +46,47 @@ Exterstellar.register({
         ];
         for (const p of props) overlay.style[p] = cs[p];
         overlay.style.width = ta.clientWidth + "px";
-      }
-
-      function syncScroll() {
-        overlay.scrollTop = ta.scrollTop;
+        if (isAutogrow) {
+          overlay.style.height = ta.offsetHeight + "px";
+          wrapper.style.height = Math.min(ta.offsetHeight, 480) + "px";
+          ta.style.maxHeight = "";
+        }
       }
 
       function sync() {
+        if (!isAutogrow) {
+          ta.style.height = "auto";
+          ta.style.height = ta.scrollHeight + "px";
+        }
         overlay.innerHTML = renderMd(ta.value);
-        overlay.scrollTop = ta.scrollTop;
+        overlay.scrollTop = wrapper.scrollTop;
       }
 
+      function onWheel(e) {
+        wrapper.scrollTop += e.deltaY;
+        e.preventDefault();
+      }
+
+      wrapper.addEventListener("scroll", () => {
+        overlay.scrollTop = wrapper.scrollTop;
+      });
+
       ta.addEventListener("input", sync);
-      ta.addEventListener("scroll", syncScroll);
+      ta.addEventListener("wheel", onWheel, {passive: false});
 
       const ro = new ResizeObserver(syncStyles);
       ro.observe(ta);
 
       syncStyles();
       sync();
-      instances.set(ta, {overlay, wrapper, ro, syncScroll});
+      instances.set(ta, {overlay, wrapper, ro, onWheel});
     }
 
     function detach(ta) {
       const inst = instances.get(ta);
       if (!inst) return;
       inst.ro.disconnect();
-      ta.removeEventListener("scroll", inst.syncScroll);
+      ta.removeEventListener("wheel", inst.onWheel);
       inst.overlay.remove();
       inst.wrapper.parentNode.insertBefore(ta, inst.wrapper);
       inst.wrapper.remove();
@@ -90,6 +106,8 @@ Exterstellar.register({
     observer.observe(document.documentElement, {childList: true, subtree: true});
     document.querySelectorAll(".feed-composer__textarea").forEach(attach);
 
+    Exterstellar._exports["md-preview"] = {attach, detach};
+
     return function cleanup() {
       observer.disconnect();
       for (const ta of [...instances.keys()]) detach(ta);
@@ -99,8 +117,6 @@ Exterstellar.register({
 });
 
 function renderMd(raw) {
-  // this is the last time i touch regex bro
-
   if (!raw) return "";
 
   let s = raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -147,7 +163,8 @@ function buildPreviewCSS(dimRaw, maxH) {
     .mdp-wrap {
       display: grid;
       max-height: ${maxH}px;
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     .mdp-wrap > * {
@@ -158,13 +175,16 @@ function buildPreviewCSS(dimRaw, maxH) {
       position: relative;
       z-index: 2;
       align-self: start;
-      max-height: ${maxH}px !important;
+      overflow: hidden !important;
       color: transparent !important;
       caret-color: var(--color-space-text) !important;
       background: transparent !important;
-      overflow-y: auto !important;
-      overflow-x: hidden !important;
-      resize: none;
+      resize: none !important;
+    }
+
+    .devlog-detail__comment-textarea {
+      color: transparent !important;
+      caret-color: var(--color-space-text) !important;
     }
 
     ${dimRaw ? `
@@ -179,9 +199,7 @@ function buildPreviewCSS(dimRaw, maxH) {
       z-index: 1;
       align-self: start;
       pointer-events: none;
-      max-height: ${maxH}px;
-      overflow-y: hidden;
-      overflow-x: hidden;
+      overflow: hidden;
       color: var(--color-space-text);
       box-sizing: border-box;
     }
@@ -211,7 +229,7 @@ function buildPreviewCSS(dimRaw, maxH) {
       color: var(--color-space-accent);
       opacity: 0.9;
     }
-    .mdp-bullet {font-style:normal;}
+    .mdp-bullet {font-style: normal;}
 
     .mdp-hr {
       display: block;

@@ -1281,6 +1281,19 @@ Please report this to https://github.com/markedjs/marked.`, e) {
             const ta = form.querySelector(".devlog-detail__comment-textarea");
             if (!ta) return;
             const suffix = " (Use Exterstellar for comment markdown.)";
+            const formatter = Exterstellar.getExport("devlog-formatter");
+            if (formatter) {
+              ta.classList.add("feed-composer__textarea");
+              form.classList.add("feed-composer__field");
+              formatter.inject(form);
+              ta.classList.remove("feed-composer__textarea");
+              form.classList.remove("feed-composer__field");
+            }
+            const preview = Exterstellar.getExport("md-preview");
+            if (preview) {
+              preview.attach(ta);
+              ta.style.borderWidth = "0px";
+            }
             function onSubmit(e) {
               if (!advertise) return;
               if (!looksLikeMd(ta.value)) return;
