@@ -578,6 +578,34 @@ export default function Home() {
               </div>
             </div>
           </div>
+
+          <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-4 text-center items-center">
+              <h3 className="text-3xl font-medium">
+                Comment Markdown
+              </h3>
+
+              <p className="text-neutral-400 max-w-2xl leading-7">
+                Brings markdown formatting support to Stardance comments.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 overflow-hidden max-w-3xl mx-auto">
+             <img
+              src="/plugins/comment-markdown.png"
+              alt="Comment Markdown"
+              className="w-full"
+            />
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 overflow-hidden max-w-5xl mx-auto">
+              <img
+                src="/plugins/comment-markdown-demo.png"
+                alt="Comment Markdown Demo"
+                className="w-full"
+              />
+            </div>
+          </div>
         </motion.div>
       </div>
 
