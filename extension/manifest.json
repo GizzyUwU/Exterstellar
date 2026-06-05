@@ -30,6 +30,7 @@
         "plugins/md-preview.js",
         "plugins/devlog-changelog.js",
         "plugins/comment-markdown.bundle.js",
+        "plugins/shop-goals-enhanced.js",
         "content.js"
       ],
       "run_at": "document_start"
