@@ -472,6 +472,168 @@ export default function Home() {
               </div>
             </div>
           </div>
+
+          <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-4 text-center items-center">
+              <h3 className="text-3xl font-medium">
+                Sidebar Reorder
+              </h3>
+
+              <p className="text-neutral-400 max-w-2xl leading-7">
+                Drag and drop sidebar items into any order you want.
+              </p>
+            </div>
+            
+            <div className="rounded-2xl border border-neutral-800 overflow-hidden max-w-3xl mx-auto">
+              <img
+                src="/plugins/sidebar-reorder.png"
+                alt="Sidebar Reorder"
+                className="w-full"
+              />
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 overflow-hidden max-w-5xl mx-auto">
+              <img
+                src="/plugins/sidebar-reorder-demo.gif"
+                alt="Sidebar Reorder Demo"
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-4 text-center items-center">
+              <h3 className="text-3xl font-medium">
+                Sidebar Hotkeys
+              </h3>
+
+              <p className="text-neutral-400 max-w-2xl leading-7">
+                Instantly navigate Stardance using customizable keyboard shortcuts and optional sidebar key hints.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 overflow-hidden max-w-3xl mx-auto">
+             <img
+              src="/plugins/sidebar-hotkeys.png"
+              alt="Sidebar Hotkeys"
+              className="w-full"
+            />
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 overflow-hidden max-w-5xl mx-auto">
+              <img
+                src="/plugins/sidebar-hotkeys-demo.gif"
+                alt="Sidebar Hotkeys Demo"
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-4 text-center items-center">
+              <h3 className="text-3xl font-medium">
+                Devlog Formatter
+              </h3>
+
+              <p className="text-neutral-400 max-w-2xl leading-7">
+                Adds a markdown formatting toolbar to the Stardance devlog editor.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 overflow-hidden max-w-2xl mx-auto">
+              <img
+                src="/plugins/devlog-formatter.png"
+                alt="Devlog Formatter"
+                className="w-full"
+              />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+              <div className="flex flex-col gap-3">
+                <p className="text-center text-sm text-neutral-500 tracking-wide">
+                  WITHOUT LABELS
+                </p>
+
+                <div className="rounded-2xl border border-neutral-800 overflow-hidden">
+                  <img
+                    src="/plugins/devlog-formatter-without-labels.png"
+                    alt="Without Labels"
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <p className="text-center text-sm text-neutral-500 tracking-wide">
+                  WITH LABELS
+                </p>
+
+                <div className="rounded-2xl border border-neutral-800 overflow-hidden">
+                  <img
+                    src="/plugins/devlog-formatter-with-labels.png"
+                    alt="With Labels"
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-4 text-center items-center">
+              <h3 className="text-3xl font-medium">
+                Comment Markdown
+              </h3>
+
+              <p className="text-neutral-400 max-w-2xl leading-7">
+                Brings markdown formatting support to Stardance comments.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 overflow-hidden max-w-3xl mx-auto">
+             <img
+              src="/plugins/comment-markdown.png"
+              alt="Comment Markdown"
+              className="w-full"
+            />
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 overflow-hidden max-w-5xl mx-auto">
+              <img
+                src="/plugins/comment-markdown-demo.png"
+                alt="Comment Markdown Demo"
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-4 text-center items-center">
+              <h3 className="text-3xl font-medium">
+                Oneko
+              </h3>
+
+              <p className="text-neutral-400 max-w-2xl leading-7">
+                Brings the classic cursor-following cat to Stardance.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 overflow-hidden max-w-3xl mx-auto">
+              <img
+                src="/plugins/oneko.png"
+                alt="Oneko"
+                className="w-full"
+              />
+            </div>
+
+            <div className="rounded-2xl border border-neutral-800 overflow-hidden max-w-5xl mx-auto">
+              <img
+                src="/plugins/oneko-demo.gif"
+                alt="Oneko Demo"
+                className="w-full"
+              />
+            </div>
+          </div>
         </motion.div>
       </div>
 
