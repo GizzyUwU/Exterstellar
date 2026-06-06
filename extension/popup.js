@@ -1,8 +1,85 @@
 let states = {};
 let pluginConfigs = {};
+let managerSettings = {};
 
 const save = () => chrome.storage.sync.set({pluginStates: states});
 const saveConfigs = () => chrome.storage.sync.set({pluginConfig: pluginConfigs});
+const saveMgrSettings = () => chrome.storage.sync.set({managerSettings});
+
+const MGR_FIELDS = [
+  {
+    key: "fontSize",
+    label: "Font size",
+    default: "13",
+    options: ["9", "11", "13", "15", "17"].map(v => ({value: v, label: v + "px"})),
+    apply: v => {
+      document.body.style.fontSize = v + "px";
+      let s = document.getElementById("mgr-font-override");
+      if (!s) {
+        s = document.createElement("style");
+        s.id = "mgr-font-override";
+        document.head.appendChild(s);
+      }
+      const sub = Math.max(9, Number(v) - 2);
+      s.textContent = `
+        .byline, .count, .cfg-label, .cfg-input, .cfg-select, .blurb {font-size: ${sub}px;}
+      `;
+    },
+  },
+  {
+    key: "width",
+    label: "Popup width",
+    default: "340",
+    options: ["280", "310", "340", "370", "400", "430"].map(v => ({value: v, label: v + "px"})),
+    apply: v => {document.body.style.width = v + "px";},
+  },
+  // {
+  //   key: "maxHeight",
+  //   label: "Max height",
+  //   default: "480",
+  //   options: ["400", "480", "560", "600"].map(v => ({value: v, label: v + "px"})),
+  //   apply: v => {document.body.style.height = v + "px";},
+  // },
+];
+
+function applyManagerSettings(cfg = managerSettings) {
+  for (const field of MGR_FIELDS) {
+    field.apply(cfg[field.key] ?? field.default);
+  }
+}
+
+function buildManagerPanel() {
+  const panel = el("div", "mgr-panel");
+
+  for (const field of MGR_FIELDS) {
+    const row = el("div", "cfg-row");
+    const lbl = el("label", "cfg-label");
+    lbl.textContent = field.label;
+    lbl.title = field.label;
+    lbl.setAttribute("aria-label", field.label);
+
+    const select = document.createElement("select");
+    select.className = "cfg-select";
+    for (const opt of field.options) {
+      const o = document.createElement("option");
+      o.value = opt.value;
+      o.textContent = opt.label;
+      if ((managerSettings[field.key] ?? field.default) === opt.value) o.selected = true;
+      select.appendChild(o);
+    }
+
+    select.addEventListener("change", () => {
+      managerSettings[field.key] = select.value;
+      saveMgrSettings();
+      field.apply(select.value);
+    });
+
+    row.append(lbl, select);
+    panel.appendChild(row);
+  }
+
+  return panel;
+}
 
 function el(tag, cls) {
   const node = document.createElement(tag);
@@ -35,6 +112,8 @@ function buildConfigPanel(plugin) {
     const cfgRow = el("div", "cfg-row");
     const lbl = el("label", "cfg-label");
     lbl.textContent = field.label;
+    lbl.title = field.label;
+    lbl.setAttribute("aria-label", field.label);
 
     let input;
     if (field.type === "select") {
@@ -139,6 +218,20 @@ function buildRow(plugin) {
 
 const listEl = document.getElementById("list");
 const countEl = document.getElementById("count");
+const mgrBtn = document.getElementById("mgr-btn");
+let mgrPanelEl = null;
+
+mgrBtn.addEventListener("click", () => {
+  if (mgrPanelEl) {
+    mgrPanelEl.remove();
+    mgrPanelEl = null;
+    mgrBtn.classList.remove("gear-btn--open");
+  } else {
+    mgrPanelEl = buildManagerPanel();
+    listEl.before(mgrPanelEl);
+    mgrBtn.classList.add("gear-btn--open");
+  }
+});
 
 function renderPlugins(plugins) {
   listEl.innerHTML = "";
@@ -189,12 +282,17 @@ chrome.storage.onChanged.addListener((changes, area) => {
     states = changes.pluginStates.newValue ?? {};
   } else if (area === "sync" && changes.pluginConfig) {
     pluginConfigs = changes.pluginConfig.newValue ?? {};
+  } else if (area === "sync" && changes.managerSettings) {
+    managerSettings = changes.managerSettings.newValue ?? {};
+    applyManagerSettings();
   }
 });
 
-chrome.storage.sync.get(["pluginStates", "pluginConfig"], syncData => {
+chrome.storage.sync.get(["pluginStates", "pluginConfig", "managerSettings"], syncData => {
   states = syncData.pluginStates ?? {};
   pluginConfigs = syncData.pluginConfig ?? {};
+  managerSettings = syncData.managerSettings ?? {};
+  applyManagerSettings();
   applyPopupFont();
 
   chrome.storage.local.get("pluginManifest", localData => {

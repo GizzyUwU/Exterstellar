@@ -16,7 +16,6 @@
 
 body {
   width: 340px;
-  max-height: 480px;
   overflow-y: auto;
   background: var(--bg);
   color: var(--text);
@@ -36,6 +35,12 @@ body {
   font-weight: 700;
   font-size: 20px;
   letter-spacing: 0.03em;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .count {
@@ -171,6 +176,24 @@ body {
   border-color: var(--accent);
 }
 
+.mgr-panel {
+  background: var(--cfg-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.mgr-panel .cfg-row::before {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
 .cfg-panel {
   background: var(--cfg-bg);
   border-top: 1px solid var(--border);
@@ -195,14 +218,6 @@ body {
   text-overflow: ellipsis;
   flex: 1;
   min-width: 0;
-}
-
-.cfg-row:hover .cfg-label {
-  white-space: normal;
-}
-
-.cfg-row:hover {
-  align-items: flex-start;
 }
 
 .cfg-input,
