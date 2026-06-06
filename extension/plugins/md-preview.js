@@ -97,14 +97,14 @@ Exterstellar.register({
       for (const m of mutations) {
         for (const node of m.addedNodes) {
           if (!(node instanceof Element)) continue;
-          node.querySelectorAll(".feed-composer__textarea").forEach(attach);
-          if (node.matches?.(".feed-composer__textarea")) attach(node);
+          node.querySelectorAll(".feed-composer__textarea, .devlog-detail__comment-textarea").forEach(attach);
+          if (node.matches?.(".feed-composer__textarea, .devlog-detail__comment-textarea")) attach(node);
         }
       }
     });
 
     observer.observe(document.documentElement, {childList: true, subtree: true});
-    document.querySelectorAll(".feed-composer__textarea").forEach(attach);
+    document.querySelectorAll(".feed-composer__textarea, .devlog-detail__comment-textarea").forEach(attach);
 
     Exterstellar._exports["md-preview"] = {attach, detach};
 
@@ -182,13 +182,21 @@ function buildPreviewCSS(dimRaw, maxH) {
       resize: none !important;
     }
 
-    .devlog-detail__comment-textarea {
+    .mdp-wrap .devlog-detail__comment-textarea {
+      position: relative;
+      z-index: 2;
+      align-self: start;
+      overflow: hidden !important;
       color: transparent !important;
       caret-color: var(--color-space-text) !important;
+      background: transparent !important;
+      resize: none !important;
+      border-width: 0 !important;
     }
 
     ${dimRaw ? `
-    .mdp-wrap .feed-composer__textarea {
+    .mdp-wrap .feed-composer__textarea,
+    .mdp-wrap .devlog-detail__comment-textarea {
       color: rgb(var(--color-space-text-rgb, 205 214 244) / 0.18) !important;
       caret-color: var(--color-space-text) !important;
     }

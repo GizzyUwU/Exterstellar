@@ -98,21 +98,21 @@ Exterstellar.register({
 
     function inject(field) {
       if (field.querySelector(".fmt-bar")) return;
-      const ta = field.querySelector(".feed-composer__textarea");
+      const ta = field.querySelector(".feed-composer__textarea, .devlog-detail__comment-textarea");
       if (!ta) return;
       const dest = field.querySelector(".mdp-wrap") || ta;
       dest.parentNode.insertBefore(buildBar(ta, showLabels), dest);
       field.classList.add("has-fmt-bar");
     }
 
-    document.querySelectorAll(".feed-composer__field").forEach(inject);
+    document.querySelectorAll(".feed-composer__field, .devlog-detail__comment-form").forEach(inject);
 
     const observer = new MutationObserver(mutations => {
       for (const m of mutations) {
         for (const node of m.addedNodes) {
           if (!(node instanceof Element)) continue;
-          if (node.matches(".feed-composer__field")) inject(node);
-          node.querySelectorAll(".feed-composer__field").forEach(inject);
+          if (node.matches(".feed-composer__field, .devlog-detail__comment-form")) inject(node);
+          node.querySelectorAll(".feed-composer__field, .devlog-detail__comment-form").forEach(inject);
         }
       }
     });
