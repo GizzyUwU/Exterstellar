@@ -21,6 +21,7 @@ body {
   color: var(--text);
   font-family: "Exo 2", sans-serif;
   font-size: 13px;
+  padding-bottom: 46px;
 }
 
 .header {
@@ -247,4 +248,47 @@ body {
   cursor: pointer;
   flex-shrink: 0;
   margin-left: auto;
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  gap: 6px;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.footer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: "Exo 2", sans-serif;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 200ms;
+  white-space: nowrap;
+}
+
+.footer-btn:hover {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--accent);
 }

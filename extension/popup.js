@@ -1,6 +1,7 @@
 let states = {};
 let pluginConfigs = {};
 let managerSettings = {};
+let currentPlugins = [];
 
 const save = () => chrome.storage.sync.set({pluginStates: states});
 const saveConfigs = () => chrome.storage.sync.set({pluginConfig: pluginConfigs});
@@ -234,6 +235,7 @@ mgrBtn.addEventListener("click", () => {
 });
 
 function renderPlugins(plugins) {
+  currentPlugins = plugins ?? [];
   listEl.innerHTML = "";
 
   if (!plugins?.length) {
@@ -298,4 +300,63 @@ chrome.storage.sync.get(["pluginStates", "pluginConfig", "managerSettings"], syn
   chrome.storage.local.get("pluginManifest", localData => {
     renderPlugins(localData.pluginManifest);
   });
+});
+
+document.getElementById("export-btn").addEventListener("click", () => {
+  chrome.storage.sync.get(["pluginStates", "pluginConfig", "managerSettings"], data => {
+    const payload = {
+      exterstellar: true,
+      version: 1,
+      pluginStates: data.pluginStates ?? {},
+      pluginConfig: data.pluginConfig ?? {},
+      managerSettings: data.managerSettings ?? {},
+    };
+    const blorb = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+    const url = URL.createObjectURL(blorb);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "exterstellar-settings.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+});
+
+const importFileEl = document.getElementById("import-file");
+
+document.getElementById("import-btn").addEventListener("click", () => {
+  importFileEl.value = "";
+  importFileEl.click();
+});
+
+importFileEl.addEventListener("change", () => {
+  const file = importFileEl.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.exterstellar) {
+        alert("This doesn't look like an Exterstellar settings file. In the future, importing from other extensions will be supported.");
+        return;
+      }
+
+      const toSave = {};
+      if (data.pluginStates) toSave.pluginStates = data.pluginStates;
+      if (data.pluginConfig) toSave.pluginConfig = data.pluginConfig;
+      if (data.managerSettings) toSave.managerSettings = data.managerSettings;
+
+      chrome.storage.sync.set(toSave, () => {
+        if (data.pluginStates) pluginStates = data.pluginStates;
+        if (data.pluginConfig) pluginConfig = data.pluginConfig;
+        if (data.managerSettings) managerSettings = data.managerSettings;
+
+        applyManagerSettings();
+        renderPlugins(currentPlugins);
+      });
+    } catch {
+      alert("Failed to read the file. Make sure it hasn't been tampered and is a valid Exterstellar JSON export.");
+    }
+  };
+  reader.readAsText(file);
 });
