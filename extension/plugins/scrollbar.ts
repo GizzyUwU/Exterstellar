@@ -1,3 +1,6 @@
+export {};
+declare const Exterstellar: import("../types").ExterstellarAPI;
+
 Exterstellar.register({
   id: "scrollbar",
   name: "Custom Scrollbar",
@@ -29,14 +32,14 @@ Exterstellar.register({
 
     const style = document.createElement("style");
     style.id = "exterstellar-scrollbar";
-    style.textContent = buildCSS(color);
+    style.textContent = buildCSS(String(color));
     document.head.appendChild(style);
 
     return () => style.remove();
   }
 });
 
-function buildCSS(colorVar) {
+function buildCSS(colorVar: string): string {
   return `
     * {
       scrollbar-width: thin;

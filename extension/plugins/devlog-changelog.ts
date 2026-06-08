@@ -1,3 +1,7 @@
+import { CommitSummary, FetchCommitsOptions, RepoInfo } from "../types";
+export {};
+declare const Exterstellar: import("../types").ExterstellarAPI;
+
 Exterstellar.register({
   id: "devlog-changelog",
   name: "Devlog Changelog",
@@ -163,64 +167,64 @@ Exterstellar.register({
     `;
     document.head.appendChild(style); 
 
-    function getProjectId(composerEl) {
-      const activeChip = composerEl.querySelector("[data-composer-post-url-param].feed-composer__chip--active, [data-composer-post-url-param]");
+    function getProjectId(composerEl: Element): string | null {
+      const activeChip = composerEl.querySelector<HTMLElement>("[data-composer-post-url-param].feed-composer__chip--active, [data-composer-post-url-param]");
       const m1 = activeChip?.dataset?.composerPostUrlParam?.match(/\/projects\/(\d+)\//);
-      if (m1) return m1[1];
+      if (m1) return m1[1] ?? null;
 
       // fallback
       const m2 = location.pathname.match(/\/projects\/(\d+)/);
-      if (m2) return m2[1];
+      if (m2) return m2[1] ?? null;
 
       return new URLSearchParams(location.search).get("project_id");
     }
 
-    async function fetchRepoUrl(projectId) {
+    async function fetchRepoUrl(projectId: string): Promise<string | null> {
       const res = await fetch(`/projects/${projectId}?editing=true`);
       if (!res.ok) return null;
       const doc = new DOMParser().parseFromString(await res.text(), "text/html");
-      return doc.querySelector("input[name='project[repo_url]']")?.value?.trim() || null;
+      return (doc.querySelector("input[name='project[repo_url]']") as HTMLInputElement | null)?.value?.trim() || null;
     }
 
-    function parseRepoUrl(rawUrl) {
+    function parseRepoUrl(rawUrl: string): RepoInfo | null {
       const url = (rawUrl || "").trim();
       const gh = url.match(/github\.com\/([^/]+)\/([^/?\s#]+?)(?:\.git)?\/?$/i);
-      if (gh) return {type: "github", owner: gh[1], repo: gh[2]};
+      if (gh) return {type: "github", owner: gh[1]!, repo: gh[2]!};
       const gl = url.match(/gitlab\.com\/([^/]+)\/([^/?\s#]+?)(?:\.git)?\/?$/i);
-      if (gl) return {type: "gitlab", owner: gl[1], repo: gl[2]};
+      if (gl) return {type: "gitlab", owner: gl[1]!, repo: gl[2]!};
       return null;
     }
 
-    function toISOEnd(dateStr) {
+    function toISOEnd(dateStr: string): string {
       const d = new Date(dateStr);
       d.setHours(23, 59, 59, 999);
       return d.toISOString();
     }
 
-    async function fetchBranches(repoInfo, token) {
-      const headers = {};
+    async function fetchBranches(repoInfo: RepoInfo, token: string): Promise<string[]> {
+      const headers: Record<string, string> = {};
       if (token) headers.Authorization = `Bearer ${token}`;
 
       if (repoInfo.type === "github") {
         headers.Accept = "application/vnd.github+json";
         const r = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/branches?per_page=100`, {headers});
         if (!r.ok) return [];
-        return (await r.json()).map(b => b.name);
+        return (await r.json()).map((b: {name: string}) => b.name);
       }
 
       if (repoInfo.type === "gitlab") {
         const encoded = encodeURIComponent(`${repoInfo.owner}/${repoInfo.repo}`);
         const r = await fetch(`https://gitlab.com/api/v4/projects/${encoded}/repository/branches?per_page=100`);
         if (!r.ok) return [];
-        return (await r.json()).map(b => b.name);
+        return (await r.json()).map((b: {name: string}) => b.name);
       }
 
       return [];
     }
 
-    async function fetchCommitsForBranch(repoInfo, branch, token, max) {
+    async function fetchCommitsForBranch(repoInfo: RepoInfo, branch: string, token: string, max: number): Promise<any[]> {
       if (repoInfo.type !== "github") return [];
-      const headers = {Accept: "application/vnd.github+json"};
+      const headers: Record<string, string> = {Accept: "application/vnd.github+json"};
       if (token) headers.Authorization = `Bearer ${token}`;
       const p = new URLSearchParams({per_page: String(max), sha: branch});
       const r = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/commits?${p}`, {headers});
@@ -228,9 +232,9 @@ Exterstellar.register({
       return await r.json();
     }
 
-    async function fetchCommitRange(repoInfo, from, to, token) {
+    async function fetchCommitRange(repoInfo: RepoInfo, from: string, to: string, token: string): Promise<CommitSummary[]> {
       if (repoInfo.type !== "github") throw new Error("Commit-range mode only supports GitHub. Disable commit-range mode in the plugin settings.");
-      const headers = {Accept: "application/vnd.github+json"};
+      const headers: Record<string, string> = {Accept: "application/vnd.github+json"};
       if (token) headers.Authorization = `Bearer ${token}`;
 
       const r = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/compare/${from}...${to}`, {headers});
@@ -242,26 +246,27 @@ Exterstellar.register({
       const baseCommit = baseR.ok ? await baseR.json() : null;
 
       let commits = data.commits || [];
-      if (baseCommit && !commits.some(c => c.sha === baseCommit.sha)) {
+      if (baseCommit && !commits.some((c: {sha: string}) => c.sha === baseCommit.sha)) {
         commits = [baseCommit, ...commits];
       }
 
       if (!commits.length) throw new Error("No commits found in that range.");
 
-      return commits.map(c => ({
+      return commits.map((c: {sha: string; commit: {message: string}; html_url: string}) => ({
         shortSha: c.sha.slice(0, 7),
-        message: c.commit.message.split("\n")[0].trim(),
+        message: c.commit.message.split("\n")[0]?.trim(),
         url: c.html_url
       }));
     }
 
-    async function fetchCommits(repoInfo, {since, until, branch, token, max}) {
+    async function fetchCommits(repoInfo: RepoInfo, opts: FetchCommitsOptions): Promise<CommitSummary[]> {
+      const {max, branch, since, until, token} = opts;
       if (repoInfo.type === "github") {
         const p = new URLSearchParams({per_page: String(max), sha: branch});
         if (since) p.set("since", new Date(since).toISOString());
         if (until) p.set("until", toISOEnd(until));
 
-        const headers = {Accept: "application/vnd.github+json"};
+        const headers: Record<string, string> = {Accept: "application/vnd.github+json"};
         if (token) headers.Authorization = `Bearer ${token}`;
 
         const r = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/commits?${p}`, {headers});
@@ -280,9 +285,9 @@ Exterstellar.register({
           throw new Error(`GitHub error ${r.status}: ${body.message || r.statusText}`);
         }
 
-        return (await r.json()).map(c => ({
+        return (await r.json()).map((c: {sha: string; commit: {message: string}; html_url: string}) => ({
           shortSha: c.sha.slice(0, 7),
-          message: c.commit.message.split("\n")[0].trim(),
+          message: c.commit.message.split("\n")[0]?.trim(),
           url: c.html_url
         }));
       }
@@ -299,7 +304,7 @@ Exterstellar.register({
           throw new Error(`GitLab error ${r.status}: ${body.message || r.statusText}`);
         }
 
-        return (await r.json()).map(c => ({
+        return (await r.json()).map((c: {short_id: string; title: string; id: string}) => ({
           shortSha: c.short_id,
           message: c.title.trim(),
           url: `https://gitlab.com/${repoInfo.owner}/${repoInfo.repo}/-/commit/${c.id}`
@@ -309,12 +314,12 @@ Exterstellar.register({
       throw new Error("Unsupported version control systems. (GitHub & GitLab are currently only supported. If you want support for another provider, please send a message to #exterstellar requesting so.)");
     }
 
-    function buildChangelogText(commits, header) {
+    function buildChangelogText(commits: CommitSummary[], header: string): string {
       const lines = commits.map(c => `* ${c.message} ([${c.shortSha}](${c.url}))`);
       return `${header}\n\n${lines.join("\n")}`;
     }
 
-    function insertAtCursor(ta, text) {
+    function insertAtCursor(ta: HTMLTextAreaElement, text: string): void {
       const at = ta.selectionStart ?? ta.value.length;
       const pre = ta.value.slice(0, at);
       const post = ta.value.slice(at);
@@ -325,7 +330,7 @@ Exterstellar.register({
       ta.focus();
     }
 
-    function buildPanel(composerEl, ta) {
+    function buildPanel(composerEl: Element, ta: HTMLTextAreaElement): HTMLElement {
       const manualMode = cfg.manualSelection === true || cfg.manualSelection === "true";
 
       const panel = document.createElement("div");
@@ -336,7 +341,7 @@ Exterstellar.register({
       head.textContent = "Add Changelog";
       panel.appendChild(head);
 
-      function addField(labelText, inputType, placeholder, value) {
+      function addField(labelText: string, inputType: string, placeholder: string, value: string | null): HTMLInputElement {
         const wrap = document.createElement("div");
         wrap.className = "ext-cl-field";
 
@@ -353,7 +358,7 @@ Exterstellar.register({
         return inp;
       }
 
-      function addSelect(labelText) {
+      function addSelect(labelText: string): HTMLSelectElement {
         const wrap = document.createElement("div");
         wrap.className = "ext-cl-field";
 
@@ -373,8 +378,11 @@ Exterstellar.register({
       const branchSelect = addSelect("Branch");
       branchSelect.innerHTML = `<option disabled selected>detecting repo...</option>`;
 
-      let fromSelect, toSelect, sinceInput, untilInput;
-      let loadedCommits = [];
+      let fromSelect: HTMLSelectElement | undefined;
+      let toSelect: HTMLSelectElement | undefined;
+      let sinceInput: HTMLInputElement | undefined;
+      let untilInput: HTMLInputElement | undefined;
+      let loadedCommits: Array<{sha: string; commit: {message: string}; html_url: string}> = [];
 
       if (manualMode) {
         fromSelect = addSelect("From (oldest commit)");
@@ -385,7 +393,7 @@ Exterstellar.register({
         const dateRow = document.createElement("div");
         dateRow.className = "ext-cl-dates";
 
-        function dateField(labelText) {
+        function dateField(labelText: string): HTMLInputElement {
           const wrap = document.createElement("div");
           wrap.className = "ext-cl-field";
 
@@ -415,33 +423,33 @@ Exterstellar.register({
       fetchBtn.textContent = "Fetch & Insert";
       panel.appendChild(fetchBtn);
 
-      function setStatus(msg, state) {
+      function setStatus(msg: string, state: string): void {
         statusEl.textContent = msg;
         statusEl.dataset.state = state || "";
       }
 
       function updateToDropdown() {
-        const idx = fromSelect.selectedIndex;
-        toSelect.innerHTML = loadedCommits.slice(0, idx + 1).map(c => `<option value="${c.sha}">${c.commit.message.split("\n")[0].slice(0, 50)} (${c.sha.slice(0, 7)})</option>`).join("");
-        toSelect.selectedIndex = 0;
+        const idx = fromSelect!.selectedIndex;
+        toSelect!.innerHTML = loadedCommits.slice(0, idx + 1).map(c => `<option value="${c.sha}">${c.commit.message.split("\n")[0]?.slice(0, 50)} (${c.sha.slice(0, 7)})</option>`).join("");
+        toSelect!.selectedIndex = 0;
       }
 
-      async function loadCommits(repoInfo, branch) {
-        fromSelect.innerHTML = `<option disabled selected>loading...</option>`;
-        toSelect.innerHTML = `<option disabled selected>-</option>`;
-        loadedCommits = await fetchCommitsForBranch(repoInfo, branch, cfg.githubToken || "", Math.min(Math.max(parseInt(cfg.maxCommits) || 25, 1), 100));
+      async function loadCommits(repoInfo: RepoInfo, branch: string): Promise<void> {
+        fromSelect!.innerHTML = `<option disabled selected>loading...</option>`;
+        toSelect!.innerHTML = `<option disabled selected>-</option>`;
+        loadedCommits = await fetchCommitsForBranch(repoInfo, branch, String(cfg.githubToken || ""), Math.min(Math.max(parseInt(String(cfg.maxCommits)) || 25, 1), 100));
         if (!loadedCommits.length) {
-          fromSelect.innerHTML = `<option value="">No commits found</option>`;
+          fromSelect!.innerHTML = `<option value="">No commits found</option>`;
           return;
         }
-        fromSelect.innerHTML = loadedCommits.map(c => `<option value="${c.sha}">${c.commit.message.split("\n")[0].slice(0, 50)} (${c.sha.slice(0, 7)})</option>`).join("");
-        fromSelect.selectedIndex = loadedCommits.length - 1;
+        fromSelect!.innerHTML = loadedCommits.map(c => `<option value="${c.sha}">${c.commit.message.split("\n")[0]?.slice(0, 50)} (${c.sha.slice(0, 7)})</option>`).join("");
+        fromSelect!.selectedIndex = loadedCommits.length - 1;
         updateToDropdown();
       }
 
-      async function loadBranches(repoInfo) {
+      async function loadBranches(repoInfo: RepoInfo): Promise<void> {
         branchSelect.innerHTML = `<option disabled selected>loading...</option>`;
-        const branches = await fetchBranches(repoInfo, cfg.githubToken || "");
+        const branches = await fetchBranches(repoInfo, String(cfg.githubToken || ""));
         if (!branches.length) {
           branchSelect.innerHTML = `<option value="main">main</option>`;
         } else {
@@ -451,7 +459,7 @@ Exterstellar.register({
         if (manualMode) await loadCommits(repoInfo, branchSelect.value);
       }
 
-      if (manualMode) fromSelect.addEventListener("change", updateToDropdown);
+      if (manualMode && fromSelect) fromSelect.addEventListener("change", updateToDropdown);
 
       branchSelect.addEventListener("change", async () => {
         if (!manualMode) return;
@@ -508,20 +516,22 @@ Exterstellar.register({
         try {
           let commits;
           if (manualMode) {
+            if (!fromSelect || !toSelect) return;
             const from = fromSelect.value;
             const to = toSelect.value;
             if (!from || !to) {
               setStatus("Select both from and to commits.", "err");
               return;
             }
-            commits = await fetchCommitRange(repoInfo, from, to, cfg.githubToken || "");
+            commits = await fetchCommitRange(repoInfo, from, to, String(cfg.githubToken || ""));
           } else {
+            if (!sinceInput || !untilInput) return;
             commits = await fetchCommits(repoInfo, {
               since: sinceInput.value || null,
               until: untilInput.value || null,
               branch: branchSelect.value || "main",
-              token: cfg.githubToken || "",
-              max: Math.min(Math.max(parseInt(cfg.maxCommits) || 25, 1), 100)
+              token: String(cfg.githubToken || ""),
+              max: Math.min(Math.max(parseInt(String(cfg.maxCommits)) || 25, 1), 100)
             });
           }
 
@@ -530,11 +540,11 @@ Exterstellar.register({
             return;
           }
 
-          const header = cfg.header?.trim() || "## Changelog";
+          const header = String(cfg.header ?? "").trim() || "## Changelog";
           insertAtCursor(ta, buildChangelogText(commits, header));
           setStatus(`Inserted ${commits.length} commit${commits.length !== 1 ? "s" : ""}`, "ok");
         } catch (err) {
-          setStatus(err.message || "Failed to fetch commits.", "err");
+          setStatus(err instanceof Error ? err.message : "Failed to fetch commits.", "err");
         } finally {
           fetchBtn.disabled = false;
         }
@@ -544,22 +554,22 @@ Exterstellar.register({
     }
 
     const ac = new AbortController();
-    let openPanel = null;
-    let openWrap = null;
+    let openPanel: HTMLElement | null = null;
+    let openWrap: HTMLElement | null = null;
 
     document.addEventListener("click", e => {
       if (!openPanel) return;
-      if (!openWrap?.contains(e.target)) {
+      if (!openWrap?.contains(e.target as Node | null)) {
         openPanel.remove();
         openPanel = null;
         openWrap = null;
       }
     }, {capture: true, signal: ac.signal});
 
-    function inject(composerEl) {
+    function inject(composerEl: Element): void {
       if (composerEl.querySelector(".ext-cl-wrap")) return;
       const tools = composerEl.querySelector(".feed-composer__tools");
-      const ta = composerEl.querySelector(".feed-composer__textarea");
+      const ta = composerEl.querySelector<HTMLTextAreaElement>(".feed-composer__textarea");
       if (!tools || !ta) return;
 
       const wrap = document.createElement("div");

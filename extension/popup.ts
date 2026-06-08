@@ -1,13 +1,15 @@
-let states = {};
-let pluginConfigs = {};
-let managerSettings = {};
-let currentPlugins = [];
+import type { ExportPayload, ManagerSettings, MgrFieldDef, PluginConfigMap, PluginManifestEntry, PluginStateMap } from "./types";
+
+let states: PluginStateMap = {};
+let pluginConfigs: PluginConfigMap = {};
+let managerSettings: ManagerSettings = {};
+let currentPlugins: PluginManifestEntry[] = [];
 
 const save = () => chrome.storage.sync.set({pluginStates: states});
 const saveConfigs = () => chrome.storage.sync.set({pluginConfig: pluginConfigs});
 const saveMgrSettings = () => chrome.storage.sync.set({managerSettings});
 
-const MGR_FIELDS = [
+const MGR_FIELDS: MgrFieldDef[] = [
   {
     key: "fontSize",
     label: "Font size",
@@ -34,22 +36,15 @@ const MGR_FIELDS = [
     options: ["280", "310", "340", "370", "400", "430"].map(v => ({value: v, label: v + "px"})),
     apply: v => {document.body.style.width = v + "px";},
   },
-  // {
-  //   key: "maxHeight",
-  //   label: "Max height",
-  //   default: "480",
-  //   options: ["400", "480", "560", "600"].map(v => ({value: v, label: v + "px"})),
-  //   apply: v => {document.body.style.height = v + "px";},
-  // },
 ];
 
-function applyManagerSettings(cfg = managerSettings) {
+function applyManagerSettings(cfg: ManagerSettings = managerSettings) {
   for (const field of MGR_FIELDS) {
     field.apply(cfg[field.key] ?? field.default);
   }
 }
 
-function buildManagerPanel() {
+function buildManagerPanel(): HTMLElement {
   const panel = el("div", "mgr-panel");
 
   for (const field of MGR_FIELDS) {
@@ -82,15 +77,15 @@ function buildManagerPanel() {
   return panel;
 }
 
-function el(tag, cls) {
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
   return node;
 }
 
-function buildToggle(id, checked) {
+function buildToggle(id: string, checked: boolean): HTMLLabelElement {
   const label = el("label", "toggle");
-  
+
   const input = el("input");
   input.type = "checkbox";
   input.checked = checked;
@@ -104,19 +99,19 @@ function buildToggle(id, checked) {
   return label;
 }
 
-function buildConfigPanel(plugin) {
+function buildConfigPanel(plugin: PluginManifestEntry): HTMLElement {
   const panel = el("div", "cfg-panel");
-  const inputsByKey = {};
-  const rowsByKey = {};
+  const inputsByKey: Record<string, HTMLSelectElement | HTMLInputElement> = {};
+  const rowsByKey: Record<string, HTMLElement> = {};
 
-  for (const field of plugin.config) {
+  for (const field of plugin.config ?? []) {
     const cfgRow = el("div", "cfg-row");
     const lbl = el("label", "cfg-label");
     lbl.textContent = field.label;
     lbl.title = field.label;
     lbl.setAttribute("aria-label", field.label);
 
-    let input;
+    let input: HTMLSelectElement | HTMLInputElement;
     if (field.type === "select") {
       input = document.createElement("select");
       input.className = "cfg-select";
@@ -134,18 +129,21 @@ function buildConfigPanel(plugin) {
       input.className = "cfg-checkbox";
       input.type = "checkbox";
       const saved = pluginConfigs[plugin.id]?.[field.key] ?? field.default;
-      input.checked = saved === true || saved === "true";
+      (input as HTMLInputElement).checked = saved === true || saved === "true";
     } else {
       input = document.createElement("input");
       input.className = "cfg-input";
       input.type = field.type === "number" ? "number" : "text";
-      input.value = pluginConfigs[plugin.id]?.[field.key] ?? field.default ?? "";
-      if (field.placeholder) input.placeholder = field.placeholder;
+      (input as HTMLInputElement).value = String(pluginConfigs[plugin.id]?.[field.key] ?? field.default ?? "");
+      if (field.placeholder) (input as HTMLInputElement).placeholder = field.placeholder;
     }
 
     input.addEventListener("change", () => {
-      if (!pluginConfigs[plugin.id]) pluginConfigs[plugin.id] = {};
-      pluginConfigs[plugin.id][field.key] = field.type === "checkbox" ? input.checked : input.value;
+      const cfg = pluginConfigs[plugin.id] ?? {};
+      pluginConfigs[plugin.id] = cfg;
+      cfg[field.key] = field.type === "checkbox"
+        ? (input as HTMLInputElement).checked
+        : input.value;
       saveConfigs();
     });
 
@@ -155,13 +153,14 @@ function buildConfigPanel(plugin) {
     panel.appendChild(cfgRow);
   }
 
-  for (const field of plugin.config) {
+  for (const field of plugin.config ?? []) {
     if (!field.showIf) continue;
     const row = rowsByKey[field.key];
     const guard = inputsByKey[field.showIf.key];
     if (!row || !guard) continue;
 
-    const sync = () => {row.style.display = guard.value === field.showIf.value ? "" : "none";};
+    const showIfVal = field.showIf.value;
+    const sync = () => { row.style.display = guard.value === showIfVal ? "" : "none"; };
     sync();
     guard.addEventListener("change", sync);
   }
@@ -169,7 +168,7 @@ function buildConfigPanel(plugin) {
   return panel;
 }
 
-function buildRow(plugin) {
+function buildRow(plugin: PluginManifestEntry): HTMLElement {
   const wrapper = el("div", "row-wrap");
   const row = el("div", "row");
   const info = el("div", "info");
@@ -217,10 +216,10 @@ function buildRow(plugin) {
   return wrapper;
 }
 
-const listEl = document.getElementById("list");
-const countEl = document.getElementById("count");
-const mgrBtn = document.getElementById("mgr-btn");
-let mgrPanelEl = null;
+const listEl = document.getElementById("list")!;
+const countEl = document.getElementById("count")!;
+const mgrBtn = document.getElementById("mgr-btn")!;
+let mgrPanelEl: HTMLElement | null = null;
 
 mgrBtn.addEventListener("click", () => {
   if (mgrPanelEl) {
@@ -234,7 +233,7 @@ mgrBtn.addEventListener("click", () => {
   }
 });
 
-function renderPlugins(plugins) {
+function renderPlugins(plugins: PluginManifestEntry[] | undefined): void {
   currentPlugins = plugins ?? [];
   listEl.innerHTML = "";
 
@@ -257,7 +256,7 @@ function applyPopupFont() {
   const cfg = pluginConfigs["custom-font"];
   if (!cfg?.applyToPopup) return;
 
-  const fontName = cfg.fontName?.trim() || "Exo 2";
+  const fontName = String(cfg.fontName ?? "").trim() || "Exo 2";
   if (cfg.source !== "System Fonts") {
     const link = document.createElement("link");
     link.rel = "stylesheet";
@@ -278,38 +277,38 @@ function applyPopupFont() {
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.pluginManifest) {
-    renderPlugins(changes.pluginManifest.newValue);
-  } else if (area === "sync" && changes.pluginStates) {
-    states = changes.pluginStates.newValue ?? {};
-  } else if (area === "sync" && changes.pluginConfig) {
-    pluginConfigs = changes.pluginConfig.newValue ?? {};
-  } else if (area === "sync" && changes.managerSettings) {
-    managerSettings = changes.managerSettings.newValue ?? {};
+  if (area === "local" && changes["pluginManifest"]) {
+    renderPlugins(changes["pluginManifest"].newValue);
+  } else if (area === "sync" && changes["pluginStates"]) {
+    states = changes["pluginStates"].newValue ?? {};
+  } else if (area === "sync" && changes["pluginConfig"]) {
+    pluginConfigs = changes["pluginConfig"].newValue ?? {};
+  } else if (area === "sync" && changes["managerSettings"]) {
+    managerSettings = changes["managerSettings"].newValue ?? {};
     applyManagerSettings();
   }
 });
 
 chrome.storage.sync.get(["pluginStates", "pluginConfig", "managerSettings"], syncData => {
-  states = syncData.pluginStates ?? {};
-  pluginConfigs = syncData.pluginConfig ?? {};
-  managerSettings = syncData.managerSettings ?? {};
+  states = syncData["pluginStates"] ?? {};
+  pluginConfigs = syncData["pluginConfig"] ?? {};
+  managerSettings = syncData["managerSettings"] ?? {};
   applyManagerSettings();
   applyPopupFont();
 
   chrome.storage.local.get("pluginManifest", localData => {
-    renderPlugins(localData.pluginManifest);
+    renderPlugins(localData["pluginManifest"]);
   });
 });
 
-document.getElementById("export-btn").addEventListener("click", () => {
+document.getElementById("export-btn")!.addEventListener("click", () => {
   chrome.storage.sync.get(["pluginStates", "pluginConfig", "managerSettings"], data => {
-    const payload = {
+    const payload: ExportPayload = {
       exterstellar: true,
       version: 1,
-      pluginStates: data.pluginStates ?? {},
-      pluginConfig: data.pluginConfig ?? {},
-      managerSettings: data.managerSettings ?? {},
+      pluginStates: data["pluginStates"] ?? {},
+      pluginConfig: data["pluginConfig"] ?? {},
+      managerSettings: data["managerSettings"] ?? {},
     };
     const blorb = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
     const url = URL.createObjectURL(blorb);
@@ -321,36 +320,36 @@ document.getElementById("export-btn").addEventListener("click", () => {
   });
 });
 
-const importFileEl = document.getElementById("import-file");
+const importFileEl = document.getElementById("import-file") as HTMLInputElement;
 
-document.getElementById("import-btn").addEventListener("click", () => {
+document.getElementById("import-btn")!.addEventListener("click", () => {
   importFileEl.value = "";
   importFileEl.click();
 });
 
 importFileEl.addEventListener("change", () => {
-  const file = importFileEl.files[0];
+  const file = importFileEl.files?.[0];
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = (e) => {
     try {
-      const data = JSON.parse(e.target.result);
+      const raw = (e.target as FileReader).result as string;
+      const data = JSON.parse(raw) as Partial<ExportPayload>;
       if (!data.exterstellar) {
         alert("This doesn't look like an Exterstellar settings file. In the future, importing from other extensions will be supported.");
         return;
       }
 
-      const toSave = {};
+      const toSave: Partial<ExportPayload> = {};
       if (data.pluginStates) toSave.pluginStates = data.pluginStates;
       if (data.pluginConfig) toSave.pluginConfig = data.pluginConfig;
       if (data.managerSettings) toSave.managerSettings = data.managerSettings;
 
       chrome.storage.sync.set(toSave, () => {
-        if (data.pluginStates) pluginStates = data.pluginStates;
-        if (data.pluginConfig) pluginConfig = data.pluginConfig;
-        if (data.managerSettings) managerSettings = data.managerSettings;
-
+        if (data.pluginStates) states = data.pluginStates!;
+        if (data.pluginConfig) pluginConfigs = data.pluginConfig!;
+        if (data.managerSettings) managerSettings = data.managerSettings!;
         applyManagerSettings();
         renderPlugins(currentPlugins);
       });

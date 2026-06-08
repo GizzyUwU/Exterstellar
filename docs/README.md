@@ -6,20 +6,38 @@ A quality-of-life browser extension for [Stardance](https://stardance.hackclub.c
 
 Exterstellar is currently not on any store yet, so you'll have to load it manually.
 
+### From the latest build (recommended)
+
+Download the latest build from the [workflow](https://github.com/Team-Exterstellar/Exterstellar/actions/workflows/build-extension-zip.yml) and extract it to a desired location on your device. Take a note of where you extracted it.
+
+### Building from source
+
+```bash
+cd your/path/to/your/extracted/folder
+cd extension
+npm install
+npm run build
+```
+
+Then copy the static files to the newly created `dist/` folder:
+- **Windows**: `copy manifest.json dist\ && copy popup.html dist\ && copy popup.css dist\ && xcopy images dist\images\ /E /I /Y`
+- **Mac/Linux**: `cp manifest.json popup.html popup.css dist/ && cp -r images dist/`
+
 ### Chrome / Chromium
 
 1. Go to [chrome://extensions](chrome://extensions)
 2. Enable **Developer Mode** (top-right toggle)
-3. Download the latest version from the [workflow](https://github.com/Team-Exterstellar/Exterstellar/actions/workflows/build-extension-zip.yml).
-4. Unzip it twice. (Also unzip the use-this...zip file).
-5. You should now get a folder. Click **Load unpacked** and select the folder.
+3. If using the workflow build: unzip the downloaded file twice (also unzip the inner `use-this...zip`). You should end up with a folder.
+4. If building from source: use the `extension/dist/` folder directly.
+5. Click **Load unpacked** and select the folder.
 
 ### Firefox
 
 1. Go to `about:debugging#/runtime/this-firefox`.
-2. Download the latest version from the [workflow](https://github.com/Team-Exterstellar/Exterstellar/actions/workflows/build-extension-zip.yml).
-4. Unzip it once.
-5. Click **Load Temporary Add-on...** and select the use-this...zip file.
+2. If using the workflow build: unzip the downloaded file once, then click **Load Temporary Add-on...** and select the inner `use-this...zip` file directly.
+3. If building from source: click **Load Temporary Add-on...** and select any file inside `extension/dist/` (e.g. `manifest.json`).
+
+> **Note:** Firefox temporary add-ons are removed when the browser closes. For a persistent install, you must install the extension via the Firefox Add-ons store.
 
 ## Plugins
 

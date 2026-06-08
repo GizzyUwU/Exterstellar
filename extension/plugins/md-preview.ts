@@ -1,3 +1,6 @@
+export {};
+declare const Exterstellar: import("../types").ExterstellarAPI;
+
 Exterstellar.register({
   id: "md-preview",
   name: "Markdown Preview",
@@ -21,14 +24,20 @@ Exterstellar.register({
     style.textContent = buildPreviewCSS(dimRaw, 480);
     document.head.appendChild(style);
 
-    const instances = new Map();
+    interface MdpInstance {
+      overlay: HTMLDivElement;
+      wrapper: HTMLDivElement;
+      ro: ResizeObserver;
+      onWheel: (e: WheelEvent) => void;
+    }
+    const instances = new Map<HTMLTextAreaElement, MdpInstance>();
 
-    function attach(ta) {
+    function attach(ta: HTMLTextAreaElement): void {
       if (instances.has(ta)) return;
 
       const wrapper = document.createElement("div");
       wrapper.className = "mdp-wrap";
-      ta.parentNode.insertBefore(wrapper, ta);
+      ta.parentNode?.insertBefore(wrapper, ta);
 
       const overlay = document.createElement("div");
       overlay.className = "mdp-overlay";
@@ -44,7 +53,7 @@ Exterstellar.register({
           "fontSize", "fontFamily", "fontWeight", "lineHeight", "letterSpacing", "paddingTop", "paddingLeft", "paddingRight", "paddingBottom", "borderTopWidth",
           "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "boxSizing", "textAlign", "wordBreak", "overflowWrap", "whiteSpace",
         ];
-        for (const p of props) overlay.style[p] = cs[p];
+        for (const p of props) (overlay.style as unknown as Record<string, string>)[p] = (cs as unknown as Record<string, string>)[p] ?? "";
         overlay.style.width = ta.clientWidth + "px";
         if (isAutogrow) {
           overlay.style.height = ta.offsetHeight + "px";
@@ -62,7 +71,7 @@ Exterstellar.register({
         overlay.scrollTop = wrapper.scrollTop;
       }
 
-      function onWheel(e) {
+      function onWheel(e: WheelEvent): void {
         wrapper.scrollTop += e.deltaY;
         e.preventDefault();
       }
@@ -82,13 +91,13 @@ Exterstellar.register({
       instances.set(ta, {overlay, wrapper, ro, onWheel});
     }
 
-    function detach(ta) {
+    function detach(ta: HTMLTextAreaElement) {
       const inst = instances.get(ta);
       if (!inst) return;
       inst.ro.disconnect();
       ta.removeEventListener("wheel", inst.onWheel);
       inst.overlay.remove();
-      inst.wrapper.parentNode.insertBefore(ta, inst.wrapper);
+      inst.wrapper.parentNode?.insertBefore(ta, inst.wrapper);
       inst.wrapper.remove();
       instances.delete(ta);
     }
@@ -97,14 +106,14 @@ Exterstellar.register({
       for (const m of mutations) {
         for (const node of m.addedNodes) {
           if (!(node instanceof Element)) continue;
-          node.querySelectorAll(".feed-composer__textarea, .devlog-detail__comment-textarea").forEach(attach);
-          if (node.matches?.(".feed-composer__textarea, .devlog-detail__comment-textarea")) attach(node);
+          node.querySelectorAll<HTMLTextAreaElement>(".feed-composer__textarea, .devlog-detail__comment-textarea").forEach(attach);
+          if (node.matches?.(".feed-composer__textarea, .devlog-detail__comment-textarea")) attach(node as HTMLTextAreaElement);
         }
       }
     });
 
     observer.observe(document.documentElement, {childList: true, subtree: true});
-    document.querySelectorAll(".feed-composer__textarea, .devlog-detail__comment-textarea").forEach(attach);
+    document.querySelectorAll<HTMLTextAreaElement>(".feed-composer__textarea, .devlog-detail__comment-textarea").forEach(attach);
 
     Exterstellar._exports["md-preview"] = {attach, detach};
 
@@ -116,22 +125,22 @@ Exterstellar.register({
   }
 });
 
-function renderMd(raw) {
+function renderMd(raw: string): string {
   if (!raw) return "";
 
   let s = raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  s = s.replace(/^(#{1,3}) (.+)$/gm, (_, hashes, txt) => {
+  s = s.replace(/^(#{1,3}) (.+)$/gm, (_: string, hashes: string, txt: string) => {
     const lvl = hashes.length;
     return `<span class="mdp-h mdp-h${lvl}"><span class="mdp-syntax">${hashes} </span>${txt}</span>`;
   });
 
   s = s.replace(/^([ \t]*)([*\-]) (.+)$/gm,
-    (_, indent, marker, text) => `${indent}<span class="mdp-li"><span class="mdp-syntax mdp-bullet">•</span> ${text}</span>`
+    (_: string, indent: string, marker: string, text: string) => `${indent}<span class="mdp-li"><span class="mdp-syntax mdp-bullet">•</span> ${text}</span>`
   );
 
   s = s.replace(/^([ \t]*)(\d+)\. (.+)$/gm,
-    (_, indent, n, text) => `${indent}<span class="mdp-li"><span class="mdp-syntax">${n}.</span> ${text}</span>`
+    (_: string, indent: string, n: string, text: string) => `${indent}<span class="mdp-li"><span class="mdp-syntax">${n}.</span> ${text}</span>`
   );
 
   s = s.replace(/(\*{3}|_{3})(.+?)\1/g,
@@ -158,7 +167,7 @@ function renderMd(raw) {
   return s;
 }
 
-function buildPreviewCSS(dimRaw, maxH) {
+function buildPreviewCSS(dimRaw: boolean, maxH: number): string {
   return `
     .mdp-wrap {
       display: grid;

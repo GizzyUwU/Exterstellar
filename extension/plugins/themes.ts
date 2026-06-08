@@ -1,3 +1,7 @@
+import { CssVarMap, FlavorMap } from "../types";
+export {};
+declare const Exterstellar: import("../types").ExterstellarAPI;
+
 Exterstellar.register({
   id: "themes",
   name: "Themes",
@@ -61,15 +65,15 @@ Exterstellar.register({
 
   start() {
     const cfg = Exterstellar.getConfig("themes");
-    const theme = cfg.theme || "default";
+    const theme = String(cfg.theme || "default");
     if (theme === "default") {
       sessionStorage.removeItem("_ext_themes_pre");
       return;
     }
 
-    const flavor = cfg.flavor || "mocha";
-    const accent = cfg.accent || "mauve";
-    const accentAll = cfg.accentAll ?? false;
+    const flavor = String(cfg.flavor || "mocha");
+    const accent = String(cfg.accent || "mauve");
+    const accentAll = cfg.accentAll === true || cfg.accentAll === "true";
 
     const base = THEME_PALLETES[theme]?.[flavor];
     if (!base) {
@@ -101,18 +105,18 @@ Exterstellar.register({
   }
 });
 
-function buildRootBlock(vars) {
+function buildRootBlock(vars: CssVarMap): string {
   return `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join("\n")}\n}`;
 }
 
-function hexToRgb(hex) {
+function hexToRgb(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `${r} ${g} ${b}`;
 }
 
-function deriveAccentPalette(accentHex) {
+function deriveAccentPalette(accentHex: string): CssVarMap {
   const rgb = hexToRgb(accentHex);
   return {
     "--color-brand-mint": accentHex,
@@ -138,7 +142,7 @@ function deriveAccentPalette(accentHex) {
   }
 }
 
-const THEME_PALLETES = {
+const THEME_PALLETES: Record<string, FlavorMap> = {
   catppuccin: {
     mocha: {
       "--color-space-bg": "#1e1e2e",
@@ -235,7 +239,7 @@ const THEME_PALLETES = {
   }
 };
 
-const CATPPUCCIN_ACCENTS = {
+const CATPPUCCIN_ACCENTS: Record<string, Record<string, string>> = {
   mocha: {
     rosewater: "#f5e0dc", flamingo: "#f2cdcd", pink: "#f5c2e7", mauve: "#cba6f7", red: "#f38ba8", maroon: "#eba0ac", peach: "#fab387", yellow: "#f9e2af", green: "#a6e3a1",
     teal: "#94e2d5", sky: "#89dceb", sapphire: "#74c7ec", blue: "#89b4fa", lavender: "#b4befe",
@@ -256,21 +260,22 @@ const CATPPUCCIN_ACCENTS = {
 
 const _preKey = sessionStorage.getItem("_ext_themes_pre");
 if (_preKey) {
-  const [_t, _f, _a, _aa] = _preKey.split(":");
-  const _base = THEME_PALLETES[_t]?.[_f];
-  if (_base) {
-    const _vars = { ..._base };
-    const _accentHex = CATPPUCCIN_ACCENTS[_f]?.[_a];
-    if (_accentHex) {
-      _vars["--color-space-accent"] = _accentHex;
-      _vars["--color-space-accent-soft"] = `rgb(${hexToRgb(_accentHex)} / 0.18)`;
-      if (_aa === "1") {
-        Object.assign(_vars, deriveAccentPalette(_accentHex));
+  const parts = _preKey.split(":");
+  const _t = parts[0], _f = parts[1], _a = parts[2], _aa = parts[3];
+  if (_t && _f) {
+    const _base = THEME_PALLETES[_t]?.[_f];
+    if (_base) {
+      const _vars = { ..._base };
+      const _accentHex = _a ? CATPPUCCIN_ACCENTS[_f]?.[_a] : undefined;
+      if (_accentHex) {
+        _vars["--color-space-accent"] = _accentHex;
+        _vars["--color-space-accent-soft"] = `rgb(${hexToRgb(_accentHex)} / 0.18)`;
+        if (_aa === "1") Object.assign(_vars, deriveAccentPalette(_accentHex));
       }
+      const s = document.createElement("style");
+      s.id = "exterstellar-themes";
+      s.textContent = buildRootBlock(_vars);
+      document.documentElement.appendChild(s);
     }
-    const s = document.createElement("style");
-    s.id = "exterstellar-themes";
-    s.textContent = buildRootBlock(_vars);
-    document.documentElement.appendChild(s);
   }
 }

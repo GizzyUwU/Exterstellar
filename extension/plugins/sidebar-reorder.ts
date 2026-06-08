@@ -1,3 +1,6 @@
+export {};
+declare const Exterstellar: import("../types").ExterstellarAPI;
+
 Exterstellar.register({
   id: "sidebar-reorder",
   name: "Sidebar Reorder",
@@ -47,31 +50,31 @@ Exterstellar.register({
     `;
     document.head.appendChild(style);
 
-    let savedOrder = [];
-    let dragSrc = null;
+    let savedOrder: string[] = [];
+    let dragSrc: HTMLElement | null = null;
 
-    const slugOf = li => li.querySelector("[data-slug]")?.dataset.slug ?? null;
+    const slugOf = (li: Element): string | null => (li.querySelector("[data-slug]") as HTMLElement | null)?.dataset["slug"] ?? null;
 
-    function applyOrder(list) {
+    function applyOrder(list: Element): void {
       if (!savedOrder.length) return;
       const items = [...list.querySelectorAll(":scope > .sidebar__nav-item")];
-      const bySlug = {};
+      const bySlug: Record<string, Element> = {};
       items.forEach(li => {
         const s = slugOf(li);
         if (s) bySlug[s] = li;
       });
-      const ordered = savedOrder.map(s => bySlug[s]).filter(Boolean);
+      const ordered = savedOrder.map(s => bySlug[s]).filter((x): x is Element => x !== undefined);
       const knownSet = new Set(ordered);
       const extras = items.filter(li => !knownSet.has(li));
       [...ordered, ...extras].forEach(li => list.appendChild(li));
     }
 
-    function attachDrag(list) {
-      [...list.querySelectorAll(".sidebar__nav-item")].forEach(li => {
+    function attachDrag(list: Element): void {
+      [...list.querySelectorAll<HTMLElement>(".sidebar__nav-item")].forEach(li => {
         li.removeAttribute("draggable");
       });
 
-      [...list.querySelectorAll(".sidebar__nav-item")].forEach(li => {
+      [...list.querySelectorAll<HTMLElement>(".sidebar__nav-item")].forEach(li => {
         li.setAttribute("draggable", "true");
         li.addEventListener("dragstart", onDragStart);
         li.addEventListener("dragover", onDragOver);
@@ -81,52 +84,53 @@ Exterstellar.register({
       });
     }
 
-    function onDragStart(e) {
-      dragSrc = this;
-      this.classList.add("xtr-dragging");
-      this.parentElement.classList.add("xtr-dragging-active");
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", slugOf(this) ?? "");
+    function onDragStart(e: DragEvent): void {
+      const el = e.currentTarget as HTMLElement;
+      dragSrc = el;
+      el.classList.add("xtr-dragging");
+      el.parentElement?.classList.add("xtr-dragging-active");
+      e.dataTransfer?.setData("text/plain", slugOf(el) ?? "");
     }
 
-    const onDragOver = function(e) {
+    const onDragOver = function(e: DragEvent): void {
       e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      if (this === dragSrc) return;
-
-      const rect = this.getBoundingClientRect();
-      this.classList.remove("xtr-drop-before", "xtr-drop-after");
-      this.classList.add(e.clientY < rect.top + rect.height / 2 ? "xtr-drop-before" : "xtr-drop-after");
+      e.dataTransfer!.dropEffect = "move";
+      const el = e.currentTarget as HTMLElement;
+      if (el === dragSrc) return;
+      const rect = el.getBoundingClientRect();
+      el.classList.remove("xtr-drop-before", "xtr-drop-after");
+      el.classList.add(e.clientY < rect.top + rect.height / 2 ? "xtr-drop-before" : "xtr-drop-after");
     };
 
-    const onDragLeave = function() {
-      this.classList.remove("xtr-drop-before", "xtr-drop-after");
+    const onDragLeave = function(e: Event): void {
+      (e.currentTarget as HTMLElement).classList.remove("xtr-drop-before", "xtr-drop-after");
     };
 
-    function onDrop(e) {
+    function onDrop(e: DragEvent): void {
       e.preventDefault();
-      const before = this.classList.contains("xtr-drop-before");
-      this.classList.remove("xtr-drop-before", "xtr-drop-after");
-      if (!dragSrc || dragSrc === this) return;
-
-      const list = this.parentElement;
-      if (before) list.insertBefore(dragSrc, this);
-      else list.insertBefore(dragSrc, this.nextSibling);
-
+      const el = e.currentTarget as HTMLElement;
+      const before = el.classList.contains("xtr-drop-before");
+      el.classList.remove("xtr-drop-before", "xtr-drop-after");
+      if (!dragSrc || dragSrc === el) return;
+      const list = el.parentElement;
+      if (!list) return;
+      if (before) list.insertBefore(dragSrc, el);
+      else list.insertBefore(dragSrc, el.nextSibling);
       persistOrder(list);
     }
 
-    function onDragEnd() {
-      this.classList.remove("xtr-dragging");
-      this.parentElement?.classList.remove("xtr-dragging-active");
-      document.querySelectorAll(".xtr-drop-before, .xtr-drop-after").forEach(el => {
-        el.classList.remove("xtr-drop-before", "xtr-drop-after");
+    function onDragEnd(e: Event): void {
+      const el = e.currentTarget as HTMLElement;
+      el.classList.remove("xtr-dragging");
+      el.parentElement?.classList.remove("xtr-dragging-active");
+      document.querySelectorAll(".xtr-drop-before, .xtr-drop-after").forEach(x => {
+        x.classList.remove("xtr-drop-before", "xtr-drop-after");
       });
       dragSrc = null;
     }
 
-    function persistOrder(list) {
-      const slugs = [...list.querySelectorAll(":scope > .sidebar__nav-item")].map(slugOf).filter(Boolean);
+    function persistOrder(list: Element): void {
+      const slugs = [...list.querySelectorAll(":scope > .sidebar__nav-item")].map(slugOf).filter((s): s is string => s !== null);
       savedOrder = slugs;
       chrome.storage.sync.get({["sidebarOrder"]: slugs}, () => {
         if (chrome.runtime.lastError) {
@@ -135,20 +139,20 @@ Exterstellar.register({
       });
     }
 
-    function init(list) {
+    function init(list: Element): void {
       applyOrder(list);
       attachDrag(list);
     }
 
     chrome.storage.sync.get("sidebarOrder", data => {
       savedOrder = data["sidebarOrder"] ?? [];
-      const list = document.querySelector(".sidebar__nav-list");
+      const list = document.querySelector<HTMLElement>(".sidebar__nav-list");
       if (list) init(list);
     });
 
-    let pending = null;
+    let pending: ReturnType<typeof setTimeout> | undefined;
     const observer = new MutationObserver(() => {
-      const list = document.querySelector(".sidebar__nav-list");
+      const list = document.querySelector<HTMLElement>(".sidebar__nav-list");
       if (!list || list.dataset.xtrReorderBound) return;
       list.dataset.xtrReorderBound = "1";
       clearTimeout(pending);
@@ -160,15 +164,15 @@ Exterstellar.register({
       clearTimeout(pending);
       observer.disconnect();
       style.remove();
-      document.querySelectorAll(".sidebar__nav-item[draggable]").forEach(li => {
+      document.querySelectorAll<HTMLElement>(".sidebar__nav-item[draggable]").forEach(li => {
         li.removeAttribute("draggable");
-        li.removeAttribute("dragstart", onDragStart);
-        li.removeAttribute("dragover", onDragOver);
-        li.removeAttribute("dragleave", onDragLeave);
-        li.removeAttribute("drop", onDrop);
-        li.removeAttribute("dragend", onDragEnd);
+        li.removeEventListener("dragstart", onDragStart);
+        li.removeEventListener("dragover", onDragOver);
+        li.removeEventListener("dragleave", onDragLeave);
+        li.removeEventListener("drop", onDrop);
+        li.removeEventListener("dragend", onDragEnd);
       });
-      const list = document.querySelector(".sidebar__nav-list");
+      const list = document.querySelector<HTMLElement>(".sidebar__nav-list");
       if (list) delete list.dataset.xtrReorderBound;
     };
   }

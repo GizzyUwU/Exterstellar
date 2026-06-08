@@ -1,19 +1,16 @@
 {
   "name": "extension",
   "version": "1.0.0",
-  "description": "",
-  "main": "content.js",
+  "description": "A highly customizable, QoL-focused browser extension for Stardance",
   "scripts": {
-    "build": "esbuild plugins/comment-markdown.js --bundle --outfile=plugins/comment-markdown.bundle.js",
-    "watch": "esbuild plugins/comment-markdown.js --bundle --outfile=plugins/comment-markdown.bundle.js --watch",
-    "zip": "npm run build && zip -r extension.zip . --exclude 'node_modules/*' --exclude '.git/*'"
+    "build": "esbuild plugins/*.ts --bundle --format=iife --outdir=dist/plugins && esbuild content.ts --bundle --format=iife --outfile=dist/content.js && esbuild popup.ts --bundle --format=iife --outfile=dist/popup.js",
+    "watch": "node scripts/watch.mjs",
+    "zip": "npm run build && cp manifest.json popup.html popup.css dist/ && cp -r images dist/ && cd dist && zip -r ../extension.zip . && cd .."
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
+    "@types/chrome": "^0.0.300",
     "esbuild": "^0.28.0",
-    "marked": "^18.0.4"
+    "typescript": "^5.7.0"
   }
 }

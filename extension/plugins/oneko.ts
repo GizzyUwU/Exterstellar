@@ -1,3 +1,6 @@
+export {};
+declare const Exterstellar: import("../types").ExterstellarAPI;
+
 Exterstellar.register({
     id: "oneko",
     name: "Oneko",
@@ -21,7 +24,7 @@ Exterstellar.register({
 
         let frameCount = 0;
         let idleTime = 0;
-        let idleAnimation = null;
+        let idleAnimation: keyof typeof spriteSets | null = null;
         let idleAnimationFrame = 0;
 
         const nekoSpeed = 10;
@@ -88,10 +91,10 @@ Exterstellar.register({
             ],
         };
 
-        let lastFrameTimestamp;
-        let mouseListener = null;
+        let lastFrameTimestamp: number | undefined;
+        let mouseListener: ((event: MouseEvent) => void) | null = null;
 
-        function onAnimationFrame(timestamp) {
+        function onAnimationFrame(timestamp: number) {
             // If element was removed from DOM (page navigation), re-add it
             if (!nekoEl.isConnected) {
                 if (document.body) {
@@ -120,11 +123,14 @@ Exterstellar.register({
             window.requestAnimationFrame(onAnimationFrame);
         }
 
-        let animationFrameId = null;
+        let animationFrameId: number | null = null;
 
-        function setSprite(name, frame) {
-            const sprite = spriteSets[name][frame % spriteSets[name].length];
-            nekoEl.style.backgroundPosition = `${sprite[0] * 32}px ${sprite[1] * 32}px`;
+        function setSprite(name: keyof typeof spriteSets, frame: number) {
+            const sprites = spriteSets[name];
+            const sprite = sprites[frame % sprites.length];
+            if (!sprite) return;
+            const [sx = 0, sy = 0] = sprite;
+            nekoEl.style.backgroundPosition = `${sx * 32}px ${sy * 32}px`;
             Object.assign(nekoEl.style, {
                 userSelect: 'none',
                 mozUserSelect: 'none',
@@ -151,7 +157,7 @@ Exterstellar.register({
                 Math.floor(Math.random() * 200) == 0 &&
                 idleAnimation == null
             ) {
-                let avalibleIdleAnimations = ["sleeping", "scratchSelf"];
+                let avalibleIdleAnimations: (keyof typeof spriteSets)[] = ["sleeping", "scratchSelf"];
                 if (nekoPosX < 32) {
                     avalibleIdleAnimations.push("scratchWallW");
                 }
@@ -164,10 +170,9 @@ Exterstellar.register({
                 if (nekoPosY > window.innerHeight - 32) {
                     avalibleIdleAnimations.push("scratchWallS");
                 }
-                idleAnimation =
-                    avalibleIdleAnimations[
+                idleAnimation = avalibleIdleAnimations[
                     Math.floor(Math.random() * avalibleIdleAnimations.length)
-                    ];
+                ]!;
             }
 
             switch (idleAnimation) {
@@ -218,8 +223,6 @@ Exterstellar.register({
                 heart.style.top = `${centerY + offsetY - 16}px`;
                 heart.style.transform = `translate(-50%, -50%) rotate(${Math.random() * 360}deg)`;
                 heart.style.userSelect = 'none';
-                heart.style.mozUserSelect = 'none';
-                heart.style.msUserSelect = 'none';
                 heart.draggable = false;
                 parent.appendChild(heart);
                 setTimeout(() => {
@@ -276,7 +279,7 @@ Exterstellar.register({
             direction += diffY / distance < -0.5 ? "S" : "";
             direction += diffX / distance > 0.5 ? "W" : "";
             direction += diffX / distance < -0.5 ? "E" : "";
-            setSprite(direction, frameCount);
+            setSprite(direction as keyof typeof spriteSets, frameCount);
 
             nekoPosX -= (diffX / distance) * nekoSpeed;
             nekoPosY -= (diffY / distance) * nekoSpeed;
@@ -289,7 +292,7 @@ Exterstellar.register({
         }
 
         nekoEl.id = "oneko";
-        nekoEl.ariaHidden = true;
+        nekoEl.ariaHidden = "true";
         nekoEl.style.width = "32px";
         nekoEl.style.height = "32px";
         nekoEl.style.position = "fixed";
@@ -297,7 +300,7 @@ Exterstellar.register({
         nekoEl.style.imageRendering = "pixelated";
         nekoEl.style.left = `${nekoPosX - 16}px`;
         nekoEl.style.top = `${nekoPosY - 16}px`;
-        nekoEl.style.zIndex = Number.MAX_VALUE;
+        nekoEl.style.zIndex = String(Number.MAX_VALUE);
 
         let nekoFile = "https://raw.githubusercontent.com/adryd325/oneko.js/14bab15a755d0e35cd4ae19c931d96d306f99f42/oneko.gif"
         const curScript = document.currentScript

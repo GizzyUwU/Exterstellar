@@ -1,3 +1,6 @@
+export {};
+declare const Exterstellar: import("../types").ExterstellarAPI;
+
 Exterstellar.register({
   id: "devlog-formatter",
   name: "Devlog Formatter",
@@ -96,12 +99,12 @@ Exterstellar.register({
     `;
     document.head.appendChild(style);
 
-    function inject(field) {
+    function inject(field: Element): void {
       if (field.querySelector(".fmt-bar")) return;
-      const ta = field.querySelector(".feed-composer__textarea, .devlog-detail__comment-textarea");
+      const ta = field.querySelector<HTMLTextAreaElement>(".feed-composer__textarea, .devlog-detail__comment-textarea");
       if (!ta) return;
       const dest = field.querySelector(".mdp-wrap") || ta;
-      dest.parentNode.insertBefore(buildBar(ta, showLabels), dest);
+      dest.parentNode?.insertBefore(buildBar(ta, showLabels), dest);
       field.classList.add("has-fmt-bar");
     }
 
@@ -133,7 +136,7 @@ Exterstellar.register({
   }
 });
 
-function wrapSel(ta, before, after, placeholder) {
+function wrapSel(ta: HTMLTextAreaElement, before: string, after: string, placeholder: string): void {
   const start = ta.selectionStart;
   const end = ta.selectionEnd;
   const sel = ta.value.slice(start, end) || placeholder;
@@ -142,7 +145,7 @@ function wrapSel(ta, before, after, placeholder) {
   ta.focus();
 }
 
-function prefixLines(ta, getPrefix) {
+function prefixLines(ta: HTMLTextAreaElement, getPrefix: (line: string, idx: number) => string): void {
   const start = ta.selectionStart;
   const end = ta.selectionEnd;
   const sel = ta.value.slice(start, end) || "Item";
@@ -152,11 +155,13 @@ function prefixLines(ta, getPrefix) {
   ta.focus();
 }
 
-function buildBar(ta, showLabels) {
+type FmtBtn = | {title: string; svg: string; run: () => void; label?: never} | {title: string; label: string; run: () => void; svg?: never};
+
+function buildBar(ta: HTMLTextAreaElement, showLabels: boolean): HTMLElement {
   const bar = document.createElement("div");
   bar.className = "fmt-bar";
 
-  const GROUPS = [
+  const GROUPS: FmtBtn[][] = [
     [
       {
         title: "Bold",
@@ -232,7 +237,7 @@ function buildBar(ta, showLabels) {
         }
       } else {
         b.className = "fmt-btn fmt-btn--heading";
-        b.textContent = btn.label;
+        b.textContent = String(btn.label);
       }
 
       bar.appendChild(b);

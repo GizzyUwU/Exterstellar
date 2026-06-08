@@ -1,3 +1,7 @@
+import { EtaMode, GoalItem, SortKey } from "../types";
+export {};
+declare const Exterstellar: import("../types").ExterstellarAPI;
+
 Exterstellar.register({
   id: "shop-goals-enhanced",
   name: "Shop Goals Enhanced",
@@ -67,35 +71,35 @@ Exterstellar.register({
   start() {
     const cfg = Exterstellar.getConfig("shop-goals-enhanced");
 
-    const cfgBool = v => v !== false && v !== "false";
-    const el = (tag, cls, txt) => {
+    const cfgBool = (v: string | boolean | number): boolean => v !== false && v !== "false";
+    const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, txt?: string): HTMLElementTagNameMap[K] => {
       const e = document.createElement(tag);
       if (cls) e.className = cls;
       if (txt != null) e.textContent = txt;
       return e;
     };
-    const sync = obj => {try {chrome.storage.sync.set(obj);} catch (_) {}};
-    const qs = s => document.querySelector(s);
-    const qsa = s => document.querySelectorAll(s);
+    const sync = (obj: Record<string, unknown>): void => {try {chrome.storage.sync.set(obj);} catch (_) {}};
+    const qs = (s: string): Element | null => document.querySelector(s);
+    const qsa = (s: string): NodeListOf<Element> => document.querySelectorAll(s);
 
-    const showETA = cfgBool(cfg.showETA);
-    const showSummary = cfgBool(cfg.showSummary);
-    const showRec = cfgBool(cfg.showRecommender);
-    const showSort = cfgBool(cfg.showSort);
-    const highlight = cfgBool(cfg.highlightNearest);
-    let currentSort = cfg.defaultSort || "manual";
-    let currentMode = cfg.defaultMode || "cumulative";
-    let ratePerHour = Math.max(1, parseFloat(cfg.multiplier) || 10);
-    let quantities = {};
-    let manualOrder = [];
-    let dragSrcName = null;
-    let mountTimer = null;
-    let etaTimer = null;
+    const showETA = cfgBool(cfg.showETA ?? true);
+    const showSummary = cfgBool(cfg.showSummary ?? true);
+    const showRec = cfgBool(cfg.showRecommender ?? true);
+    const showSort = cfgBool(cfg.showSort ?? true);
+    const highlight = cfgBool(cfg.highlightNearest ?? true);
+    let currentSort: SortKey = (cfg.defaultSort as SortKey) || "manual";
+    let currentMode: EtaMode = (cfg.defaultMode as EtaMode) || "cumulative";
+    let ratePerHour = Math.max(1, parseFloat(String(cfg.multiplier)) || 10);
+    let quantities: Record<string, number> = {};
+    let manualOrder: string[] = [];
+    let dragSrcName: string | null = null;
+    let mountTimer: ReturnType<typeof setTimeout> | undefined;
+    let etaTimer: ReturnType<typeof setTimeout> | undefined;
 
-    let wishlistOriginalParent = null;
-    let wishlistOriginalNextSibling = null;
+    let wishlistOriginalParent: Element | null = null;
+    let wishlistOriginalNextSibling: Element | null = null;
 
-    const getQty = name => Math.max(1, quantities[name] || 1);
+    const getQty = (name: string): number => Math.max(1, quantities[name] ?? 1);
 
     try {
       chrome.storage.sync.get(["sgeQuantities", "sgeManualOrder"], d => {
@@ -466,38 +470,39 @@ Exterstellar.register({
       if (newItems.previousElementSibling !== wishlist) newItems.before(wishlist);
     }
 
-    function fmtETA(h) {
+    function fmtETA(h: number): string {
       if (!isFinite(h) || h <= 0) return "ready!";
       return h < 1 ? `~${Math.ceil(h * 60)}m` : `~${h.toFixed(1)}h`;
     }
 
-    function parseGoals() {
+    function parseGoals(): GoalItem[] | null {
       const section = qs(".discover-rail__section--wishlist");
       if (!section) return null;
       return [...section.querySelectorAll(".shop-goals__item")].map(item => {
-        const nameEl = item.querySelector(".shop-goals__name");
-        const fill = item.querySelector(".shop-goals__progress-fill");
-        const txtEl = item.querySelector(".shop-goals__progress-text");
-        const name = nameEl?.textContent.trim() || "";
-        if (fill && !fill.dataset.sgeOrigPct) fill.dataset.sgeOrigPct = fill.style.width;
-        if (txtEl && !txtEl.dataset.sgeOrigDust) {
-          const m0 = txtEl.textContent.match(/([\d,]+)\s*more needed/i);
-          txtEl.dataset.sgeOrigDust = m0 ? m0[1].replace(/,/g, "") : "0";
+        const el = item as HTMLElement;
+        const nameEl = el.querySelector(".shop-goals__name");
+        const fill = el.querySelector<HTMLElement>(".shop-goals__progress-fill");
+        const txtEl = el.querySelector<HTMLElement>(".shop-goals__progress-text");
+        const name = nameEl?.textContent?.trim() || "";
+        if (fill && !fill.dataset["sgeOrigPct"]) fill.dataset["sgeOrigPct"] = fill.style.width;
+        if (txtEl && !txtEl.dataset["sgeOrigDust"]) {
+          const m0 = txtEl.textContent?.match(/([\d,]+)\s*more needed/i);
+          txtEl.dataset["sgeOrigDust"] = m0 ? m0[1]!.replace(/,/g, "") : "0";
         }
-        const pct = parseFloat(fill?.dataset.sgeOrigPct) || 0;
+        const pct = parseFloat(fill?.dataset["sgeOrigPct"] ?? "") || 0;
         const dustNeeded = parseInt(txtEl?.dataset.sgeOrigDust || "0", 10);
         const cost = (pct > 0 && pct < 100) ? Math.round(dustNeeded / (1 - pct / 100)) : dustNeeded;
-        return {name, pct: Math.min(100, pct), dustNeeded, cost, elem: item};
+        return {name, pct: Math.min(100, pct), dustNeeded, cost, elem: el};
       });
     }
 
-    function effectiveNeeded(g) {
+    function effectiveNeeded(g: GoalItem): number {
       const qty = getQty(g.name);
       if (qty === 1) return g.dustNeeded;
       return Math.max(0, g.cost * qty - Math.round(g.cost * g.pct / 100));
     }
 
-    function sortGoals(goals, key) {
+    function sortGoals(goals: GoalItem[], key: SortKey): GoalItem[] {
       const arr = [...goals];
       if (key === "manual") {
         if (manualOrder.length > 0) {
@@ -512,57 +517,59 @@ Exterstellar.register({
       return arr;
     }
 
-    function reorderDOM(sorted) {
+    function reorderDOM(sorted: GoalItem[]): void {
       const container = qs(".shop-goals__items");
       if (container) sorted.forEach(g => container.appendChild(g.elem));
     }
 
-    function setQty(name, qty) {
+    function setQty(name: string, qty: number): void {
       quantities[name] = Math.max(1, qty);
       sync({sgeQuantities: quantities});
     }
 
-    function applyDraggable(sorted) {
+    function applyDraggable(sorted: GoalItem[]): void {
       const container = qs(".shop-goals__items");
       if (!container) return;
       sorted.forEach(g => {
         g.elem.removeAttribute("draggable");
-        ["ondragstart", "ondragend", "ondragover", "ondragleave", "ondrop"].forEach(h => g.elem[h] = null);
+        ["ondragstart", "ondragend", "ondragover", "ondragleave", "ondrop"].forEach(h => (g.elem as unknown as Record<string, unknown>)[h] = null);
         g.elem.classList.remove("sge-dragging", "sge-drag-over");
-        g.elem.querySelectorAll("a, img").forEach(e => e.removeAttribute("draggable"));
+        g.elem.querySelectorAll("a, img").forEach((e: Element) => e.removeAttribute("draggable"));
       });
       if (currentSort !== "manual") return;
 
       sorted.forEach(g => {
         g.elem.setAttribute("draggable", "true");
-        g.elem.querySelectorAll("a, img").forEach(e => e.setAttribute("draggable", "false"));
+        g.elem.querySelectorAll("a, img").forEach((e: Element) => e.setAttribute("draggable", "false"));
 
-        g.elem.ondragstart = e => {
+        g.elem.ondragstart = (e: DragEvent) => {
           dragSrcName = g.name;
-          e.dataTransfer.effectAllowed = "move";
-          e.dataTransfer.setData("text/plain", g.name);
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", g.name);
+          }
           setTimeout(() => g.elem.classList.add("sge-dragging"), 0);
         };
-        g.elem.ondragend = () => {
+        g.elem.ondragend = (_e: DragEvent) => {
           g.elem.classList.remove("sge-dragging");
           container.querySelectorAll(".sge-drag-over").forEach(e => e.classList.remove("sge-drag-over"));
         };
-        g.elem.ondragover = e => {
+        g.elem.ondragover = (e: DragEvent) => {
           e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
+          e.dataTransfer!.dropEffect = "move";
           if (dragSrcName !== g.name) {
             container.querySelectorAll(".sge-drag-over").forEach(e => e.classList.remove("sge-drag-over"));
             g.elem.classList.add("sge-drag-over");
           }
         };
-        g.elem.ondragleave = e => {
-          if (!g.elem.contains(e.relatedTarget)) g.elem.classList.remove("sge-drag-over");
+        g.elem.ondragleave = (e: DragEvent) => {
+          if (!g.elem.contains(e.relatedTarget as Node | null)) g.elem.classList.remove("sge-drag-over");
         };
-        g.elem.ondrop = e => {
+        g.elem.ondrop = (e: DragEvent) => {
           e.preventDefault();
           g.elem.classList.remove("sge-drag-over");
           if (!dragSrcName || dragSrcName === g.name) return;
-          const names = [...container.querySelectorAll(".shop-goals__item")].map(el => el.querySelector(".shop-goals__name")?.textContent.trim()).filter(Boolean);
+          const names = [...container.querySelectorAll(".shop-goals__item")].map(el => el.querySelector(".shop-goals__name")?.textContent.trim()).filter((n): n is string => n !== undefined);
           const fi = names.indexOf(dragSrcName), ti = names.indexOf(g.name);
           if (fi === -1 || ti === -1) return;
           names.splice(fi, 1);
@@ -575,9 +582,9 @@ Exterstellar.register({
       });
     }
 
-    function annotateItems(sorted) {
+    function annotateItems(sorted: GoalItem[]): void {
       let cumulativeDust = 0;
-      const computed = sorted.map(g => {
+      const computed: Array<{g: GoalItem; needed: number; indivH: number; cumH: number}> = sorted.map(g => {
         const needed = effectiveNeeded(g);
         cumulativeDust += needed;
         return {g, needed, indivH: needed / ratePerHour, cumH: cumulativeDust / ratePerHour};
@@ -586,8 +593,8 @@ Exterstellar.register({
       computed.forEach(({g, needed, indivH, cumH}) => {
         g.elem.querySelector(".sge-item-footer")?.remove();
 
-        const fill = g.elem.querySelector(".shop-goals__progress-fill");
-        const txtEl = g.elem.querySelector(".shop-goals__progress-text");
+        const fill = g.elem.querySelector<HTMLElement>(".shop-goals__progress-fill");
+        const txtEl = g.elem.querySelector<HTMLElement>(".shop-goals__progress-text");
         const effectivePct = Math.min(100, getQty(g.name) === 1 ? g.pct : g.pct / getQty(g.name));
         if (fill) fill.style.width = `${effectivePct}%`;
         if (txtEl) {
@@ -628,7 +635,7 @@ Exterstellar.register({
           setQty(g.name, qty + 1);
           refresh();
         });
-        qtyDiv.append(minus, el("span", "sge-qty__val", qty), plus);
+        qtyDiv.append(minus, el("span", "sge-qty__val", String(qty)), plus);
 
         const etaDiv = el("div", "sge-eta");
         if (isDone) {
@@ -646,21 +653,21 @@ Exterstellar.register({
       });
     }
 
-    function applyHighlight(sorted) {
+    function applyHighlight(sorted: GoalItem[]): void {
       sorted.forEach(g => g.elem.classList.remove("sge-nearest"));
       if (!highlight) return;
       const nearest = [...sorted].filter(g => effectiveNeeded(g) > 0).sort((a, b) => b.pct - a.pct)[0];
       if (nearest) nearest.elem.classList.add("sge-nearest");
     }
 
-    function mkSortBtn(label, activeKey, getActive, onClick) {
+    function mkSortBtn(label: string, activeKey: string, getActive: () => string, onClick: () => void): HTMLButtonElement {
       const btn = el("button", "sge-sort__btn" + (getActive() === activeKey ? " sge-active" : ""), label);
       btn.type = "button";
       btn.addEventListener("click", onClick);
       return btn;
     }
 
-    function injectControls(section, sorted) {
+    function injectControls(section: Element, sorted: GoalItem[]): void {
       section.querySelectorAll(".sge-summary, .sge-rec, .sge-sort, .sge-rate").forEach(e => e.remove());
       const container = section.querySelector(".shop-goals__container");
       if (!container) return;
@@ -698,7 +705,7 @@ Exterstellar.register({
           {key: "cheapest", label: "Cheapest"},
           {key: "expensive", label: "Expensive First"},
         ].forEach(({key, label}) => {
-          sortRow.appendChild(mkSortBtn(label, key, () => currentSort, () => {currentSort = key; refresh();}));
+          sortRow.appendChild(mkSortBtn(label, key, () => currentSort, () => {currentSort = key as SortKey; refresh();}));
         });
         sortRow.appendChild(el("span", "sge-sort__divider"));
         sortRow.appendChild(el("span", "sge-sort__label", "ETA"));
@@ -706,7 +713,7 @@ Exterstellar.register({
           {key: "individual", label: "Indiv."},
           {key: "cumulative", label: "Cumul."},
         ].forEach(({key, label}) => {
-          sortRow.appendChild(mkSortBtn(label, key, () => currentMode, () => {currentMode = key; refresh();}));
+          sortRow.appendChild(mkSortBtn(label, key, () => currentMode, () => {currentMode = key as EtaMode; refresh();}));
         });
         if (currentSort === "manual") sortRow.appendChild(el("span", "sge-sort__drag-hint", "drag to reorder"));
         container.before(sortRow);
@@ -718,7 +725,7 @@ Exterstellar.register({
       Object.assign(inp, {type: "number", min: "1", max: "36", value: ratePerHour.toFixed(1), title: "Your Stardust rate"});
       inp.addEventListener("change", () => {
         ratePerHour = Math.max(1, parseFloat(inp.value) || 36);
-        inp.value = ratePerHour.toFixed(1);
+        (inp as HTMLInputElement).value = ratePerHour.toFixed(1);
         try {
           chrome.storage.sync.get(["pluginConfig"], d => {
             const s = d.pluginConfig ?? {};
@@ -787,25 +794,28 @@ Exterstellar.register({
         wishlistOriginalNextSibling ? wishlistOriginalParent.insertBefore(wishlist, wishlistOriginalNextSibling) : wishlistOriginalParent.appendChild(wishlist);
       }
 
-      qsa(".shop-goals__item[draggable]").forEach(el => {
-        el.removeAttribute("draggable");
-        ["ondragstart", "ondragend", "ondragover", "ondragleave", "ondrop"].forEach(h => el[h] = null);
-        el.classList.remove("sge-dragging", "sge-drag-over");
-        el.querySelectorAll("a, img").forEach(child => child.removeAttribute("draggable"));
+      qsa(".shop-goals__item[draggable]").forEach(item => {
+        item.removeAttribute("draggable");
+        const h = item as HTMLElement;
+        (["ondragstart", "ondragend", "ondragover", "ondragleave", "ondrop"] as const).forEach(ev => {h[ev] = null;});
+        item.classList.remove("sge-dragging", "sge-drag-over");
+        item.querySelectorAll("a, img").forEach((child: Element) => child.removeAttribute("draggable"));
       });
 
       qsa(".sge-summary, .sge-rec, .sge-sort, .sge-rate, .sge-item-footer").forEach(e => e.remove());
       qsa(".sge-nearest").forEach(e => e.classList.remove("sge-nearest"));
       qsa(".shop-goals__progress-fill[data-sge-orig-pct]").forEach(f => {
-        f.style.width = f.dataset.sgeOrigPct;
-        delete f.dataset.sgeOrigPct;
+        const fill = f as HTMLElement;
+        fill.style.width = fill.dataset["sgeOrigPct"] ?? "";
+        delete fill.dataset["sgeOrigPct"];
       });
       qsa(".shop-goals__progress-fill[data-sge-orig-pct]").forEach(f => {
-        f.style.width = f.dataset.sgeOrigPct;
-        delete f.dataset.sgeOrigPct;
+        const fill = f as HTMLElement;
+        fill.style.width = fill.dataset["sgeOrigPct"] ?? "";
+        delete fill.dataset["sgeOrigPct"];
       });
       qsa(".shop-goals__progress-text[data-sge-orig-dust]").forEach(t => {
-        delete t.dataset.sgeOrigDust;
+        delete (t as HTMLElement).dataset["sgeOrigDust"];
       });
       style.remove();
     };

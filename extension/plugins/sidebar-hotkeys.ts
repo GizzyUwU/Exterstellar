@@ -1,3 +1,6 @@
+export {};
+declare const Exterstellar: import("../types").ExterstellarAPI;
+
 Exterstellar.register({
   id: "sidebar-hotkeys",
   name: "Sidebar Hotkeys",
@@ -72,13 +75,13 @@ Exterstellar.register({
     `;
     document.head.appendChild(style);
 
-    let keyMap = {};
+    let keyMap: Record<string, HTMLElement> = {};
 
     function buildKeyMap() {
       document.querySelectorAll(".sk-hint").forEach(h => h.remove());
       keyMap = {};
 
-      const links = [...document.querySelectorAll(".sidebar__nav-link")].filter(el => !el.classList.contains("sidebar__nav-link--locked") && !el.classList.contains("sidebar__nav-link--inert"));
+      const links = [...document.querySelectorAll<HTMLElement>(".sidebar__nav-link")].filter(el => !el.classList.contains("sidebar__nav-link--locked") && !el.classList.contains("sidebar__nav-link--inert"));
 
       const used = new Set();
 
@@ -107,9 +110,10 @@ Exterstellar.register({
       });
     }
 
-    function onKeyDown(e) {
+    function onKeyDown(e: KeyboardEvent) {
       const modHeld = modifier === "Alt" ? e.altKey : modifier === "Ctrl" ? e.ctrlKey : e.metaKey;
       if (!modHeld) return;
+      if (!(e.target instanceof Element)) return;
       if (e.target.matches("input, textarea, select, [contenteditable]")) return;
 
       const link = keyMap[e.key.toUpperCase()];
@@ -119,7 +123,7 @@ Exterstellar.register({
       link.click();
     }
 
-    let rebuildTimer = null;
+    let rebuildTimer: ReturnType<typeof setTimeout> | undefined;
     const observer = new MutationObserver(() => {
       clearTimeout(rebuildTimer);
       rebuildTimer = setTimeout(() => {

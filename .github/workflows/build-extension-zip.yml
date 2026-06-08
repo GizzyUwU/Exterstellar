@@ -14,10 +14,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Zip extension
+      - name: Setup node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: cd extension && npm ci
+
+      - name: Build
+        run: cd extension && npm run build
+      
+      - name: Zip Extension
         run: |
           cd extension
-          zip -rq ../exterstellar-use-this-in-extensions-page.zip .
+          cp manifest.json popup.html popup.css dist/
+          cp -r images dist/
+          cd dist
+          zip -rq ../../exterstellar-use-this-in-extensions-page.zip .
+
       - name: Set short SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
 

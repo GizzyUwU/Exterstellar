@@ -1,3 +1,6 @@
+export {};
+declare const Exterstellar: import("../types").ExterstellarAPI;
+
 Exterstellar.register({
   id: "custom-font",
   name: "Custom Font",
@@ -28,7 +31,7 @@ Exterstellar.register({
 
   start() {
     const cfg = Exterstellar.getConfig("custom-font");
-    const fontName = cfg.fontName?.trim() || "Exo 2";
+    const fontName = String(cfg.fontName ?? "").trim() || "Exo 2";
     const useGFonts = cfg.source !== "System Fonts";
 
     let linkEl = null;
