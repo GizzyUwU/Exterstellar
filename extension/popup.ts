@@ -320,42 +320,6 @@ document.getElementById("export-btn")!.addEventListener("click", () => {
   });
 });
 
-const importFileEl = document.getElementById("import-file") as HTMLInputElement;
-
 document.getElementById("import-btn")!.addEventListener("click", () => {
-  importFileEl.value = "";
-  importFileEl.click();
-});
-
-importFileEl.addEventListener("change", () => {
-  const file = importFileEl.files?.[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const raw = (e.target as FileReader).result as string;
-      const data = JSON.parse(raw) as Partial<ExportPayload>;
-      if (!data.exterstellar) {
-        alert("This doesn't look like an Exterstellar settings file. In the future, importing from other extensions will be supported.");
-        return;
-      }
-
-      const toSave: Partial<ExportPayload> = {};
-      if (data.pluginStates) toSave.pluginStates = data.pluginStates;
-      if (data.pluginConfig) toSave.pluginConfig = data.pluginConfig;
-      if (data.managerSettings) toSave.managerSettings = data.managerSettings;
-
-      chrome.storage.sync.set(toSave, () => {
-        if (data.pluginStates) states = data.pluginStates!;
-        if (data.pluginConfig) pluginConfigs = data.pluginConfig!;
-        if (data.managerSettings) managerSettings = data.managerSettings!;
-        applyManagerSettings();
-        renderPlugins(currentPlugins);
-      });
-    } catch {
-      alert("Failed to read the file. Make sure it hasn't been tampered and is a valid Exterstellar JSON export.");
-    }
-  };
-  reader.readAsText(file);
+  chrome.tabs.create({url: chrome.runtime.getURL("importer.html")});
 });

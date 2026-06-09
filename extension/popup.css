@@ -16,7 +16,7 @@
 
 body {
   width: 340px;
-  overflow-y: auto;
+  overflow-y: scroll;
   background: var(--bg);
   color: var(--text);
   font-family: "Exo 2", sans-serif;

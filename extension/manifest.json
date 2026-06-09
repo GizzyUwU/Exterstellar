@@ -36,11 +36,18 @@
     }
   ],
   "permissions": [
-    "storage"
+    "storage",
+    "tabs"
   ],
   "host_permissions": [
     "https://api.github.com/*",
     "https://gitlab.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["importer.html", "importer.js"],
+      "matches": ["<all_urls>"]
+    }
   ],
   "browser_specific_settings": {
     "gecko": {

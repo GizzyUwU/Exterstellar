@@ -20,8 +20,8 @@ npm run build
 ```
 
 Then copy the static files to the newly created `dist/` folder:
-- **Windows**: `copy manifest.json dist\ && copy popup.html dist\ && copy popup.css dist\ && xcopy images dist\images\ /E /I /Y`
-- **Mac/Linux**: `cp manifest.json popup.html popup.css dist/ && cp -r images dist/`
+- **Windows**: `copy manifest.json dist\ && copy popup.html dist\ && copy popup.css dist\ && copy importer.html dist\ && xcopy images dist\images\ /E /I /Y`
+- **Mac/Linux**: `cp manifest.json popup.html popup.css importer.html dist/ && cp -r images dist/`
 
 ### Chrome / Chromium
 
