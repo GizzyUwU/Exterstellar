@@ -1,4 +1,5 @@
 import type { ExportPayload, ManagerSettings, MgrFieldDef, PluginConfigMap, PluginManifestEntry, PluginStateMap } from "./types";
+import { maybeShowTour } from "./onboarding"; 
 
 let states: PluginStateMap = {};
 let pluginConfigs: PluginConfigMap = {};
@@ -73,6 +74,23 @@ function buildManagerPanel(): HTMLElement {
     row.append(lbl, select);
     panel.appendChild(row);
   }
+
+  const tourRow = el("div", "cfg-row");
+  const tourLbl = el("label", "cfg-label");
+  tourLbl.textContent = "Onboarding tour";
+  const tourBtn = el("button", "tour-btn");
+  tourBtn.textContent = "Replay";
+  tourBtn.style.cssText = `
+    margin-left: auto;
+    flex-shrink: 0;
+  `;
+  tourBtn.addEventListener("click", () => {
+    chrome.storage.sync.remove("onboardingDone", () => {
+      maybeShowTour();
+    });
+  });
+  tourRow.append(tourLbl, tourBtn);
+  panel.appendChild(tourRow);
 
   return panel;
 }
@@ -298,6 +316,7 @@ chrome.storage.sync.get(["pluginStates", "pluginConfig", "managerSettings"], syn
 
   chrome.storage.local.get("pluginManifest", localData => {
     renderPlugins(localData["pluginManifest"]);
+    maybeShowTour();
   });
 });
 
