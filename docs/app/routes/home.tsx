@@ -31,6 +31,7 @@ export default function Home() {
   });
   const [logoSrc, setLogoSrc] = useState(logo);
   const [showScroll, setShowScroll] = useState(true);
+  const [installUrl, setInstallUrl] = useState("https://github.com/Team-Exterstellar/actions/workflow/build-extension-zip.yml");
 
   const MobileParser = (MobileParserModule as any).default;
   let meClicks = 0;
@@ -110,6 +111,18 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    fetch("https://api.github.com/repos/Team-Exterstellar/Exterstellar/actions/artifacts?per_page=10")
+      .then((res) => res.json())
+      .then((data) => {
+        const latest = data.artifacts?.find((a: any) => !a.expired);
+        if (latest) {
+          setInstallUrl(`https://github.com/Team-Exterstellar/Exterstellar/actions/runs/${latest.workflow_run.id}/artifacts/${latest.id}`);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   function monopolyEasteregg() {
     if (meClicks >= 5) {
       setLogoSrc("/monopolies/StardanceUtilsLogoReal.png");
@@ -162,7 +175,7 @@ export default function Home() {
             viewport={{ once: true }}
             className="flex justify-end pr-[5dvw]"
           >
-            <motion.button
+            <motion.a
               whileHover={
                 !browser.disabled
                   ? {
@@ -174,13 +187,17 @@ export default function Home() {
                   : {}
               }
               transition={{ duration: 0.25 }}
-              disabled={browser.disabled}
-              className={browser.disabled ? "opacity-50 cursor-not-allowed" : ""}
+              href={browser.disabled ? undefined : installUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-disabled={browser.disabled}
+              onClick={(e) => {
+                if (browser.disabled) e.preventDefault();
+              }}
+              className={`btn no-underline! hover:no-underline! visited:no-underline! active:no-underline! ${browser.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              {browser.disabled
-                ? `Unavailable for ${browser.name}`
-                : `Install for ${browser.name}`}
-            </motion.button>
+              {browser.disabled ? `Unavailable for ${browser.name}` : `Install for ${browser.name}`}
+            </motion.a>
           </motion.div>
 
           <motion.div
