@@ -1,5 +1,6 @@
 import * as esbuild from "esbuild";
-import {readdirSync} from "fs";
+import {existsSync, watch, readdirSync} from "fs";
+import { copyStatic, STATIC_FILES, STATIC_DIRS } from "./copy-static.mjs";
 
 const plugins = readdirSync("plugins").filter(f => f.endsWith(".ts")).map(f => `plugins/${f}`);
 
@@ -14,4 +15,25 @@ const contexts = await Promise.all([
 ]);
 
 await Promise.all(contexts.map(c => c.watch()));
+
+copyStatic();
+
+for (const file of STATIC_FILES) {
+  if (existsSync(file)) {
+    watch(file, () => {
+      copyStatic();
+      console.log(`[Exterstellar | Watch] Copied ${file} -> dist/`);
+    });
+  }
+}
+
+for (const dir of STATIC_DIRS) {
+  if (existsSync(dir)) {
+    watch(dir, {recursive: true}, () => {
+      copyStatic();
+      console.log(`[Exterstellar | Watch] Copied ${dir}/ -> dist/`);
+    });
+  }
+}
+
 console.log("[Exterstellar | Watch] Watching...");
