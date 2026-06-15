@@ -30,6 +30,7 @@
         "plugins/md-preview.js",
         "plugins/devlog-changelog.js",
         "plugins/shop-goals-enhanced.js",
+        "plugins/persistent-devlogs.js",
         "content.js"
       ],
       "run_at": "document_start"
