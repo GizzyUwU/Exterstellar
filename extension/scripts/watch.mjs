@@ -12,6 +12,7 @@ const contexts = await Promise.all([
   esbuild.context({...shared, entryPoints: ["popup.ts"], outfile: "dist/popup.js"}),
   esbuild.context({...shared, entryPoints: ["importer.ts"], outfile: "dist/importer.js"}),
   esbuild.context({...shared, entryPoints: ["onboarding.ts"], outfile: "dist/onboarding.js"}),
+  esbuild.context({...shared, entryPoints: ["background.ts"], outfile: "dist/background.js"}),
 ]);
 
 await Promise.all(contexts.map(c => c.watch()));

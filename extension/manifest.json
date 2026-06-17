@@ -12,6 +12,9 @@
     "default_popup": "popup.html",
     "default_title": "Exterstellar"
   },
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": [
@@ -31,6 +34,7 @@
         "plugins/devlog-changelog.js",
         "plugins/shop-goals-enhanced.js",
         "plugins/persistent-devlogs.js",
+        "plugins/link-preview.js",
         "content.js"
       ],
       "run_at": "document_start"
@@ -42,7 +46,8 @@
   ],
   "host_permissions": [
     "https://api.github.com/*",
-    "https://gitlab.com/*"
+    "https://gitlab.com/*",
+    "<all_urls>"
   ],
   "web_accessible_resources": [
     {
