@@ -30,44 +30,51 @@ Exterstellar.register({
       ro: ResizeObserver;
       onWheel: (e: WheelEvent) => void;
     }
-    const instances = new Map<HTMLTextAreaElement, MdpInstance>();
+    const instances = new Map<HTMLElement, MdpInstance>();
 
-    function attach(ta: HTMLTextAreaElement): void {
-      if (instances.has(ta)) return;
+    function attach(el: HTMLElement): void {
+      if (instances.has(el)) return;
+
+      const isTextarea = el instanceof HTMLTextAreaElement;
+      const isAutogrow = isTextarea && (el.dataset.action?.includes("autogrow") ?? false);
+
+      function getText(): string {
+        return isTextarea ? (el as HTMLTextAreaElement).value : (el.innerText ?? "");
+      }
 
       const wrapper = document.createElement("div");
       wrapper.className = "mdp-wrap";
-      ta.parentNode?.insertBefore(wrapper, ta);
+      el.parentNode?.insertBefore(wrapper, el);
 
       const overlay = document.createElement("div");
       overlay.className = "mdp-overlay";
       overlay.setAttribute("aria-hidden", "true");
       wrapper.appendChild(overlay);
-      wrapper.appendChild(ta);
-
-      const isAutogrow = ta.dataset.action?.includes("autogrow");
+      wrapper.appendChild(el);
 
       function syncStyles() {
-        const cs = getComputedStyle(ta);
+        const cs = getComputedStyle(el);
         const props = [
           "fontSize", "fontFamily", "fontWeight", "lineHeight", "letterSpacing", "paddingTop", "paddingLeft", "paddingRight", "paddingBottom", "borderTopWidth",
-          "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "boxSizing", "textAlign", "wordBreak", "overflowWrap", "whiteSpace",
+          "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "boxSizing", "textAlign", "wordBreak", "overflowWrap",
         ];
         for (const p of props) (overlay.style as unknown as Record<string, string>)[p] = (cs as unknown as Record<string, string>)[p] ?? "";
-        overlay.style.width = ta.clientWidth + "px";
-        if (isAutogrow) {
-          overlay.style.height = ta.offsetHeight + "px";
-          wrapper.style.height = Math.min(ta.offsetHeight, 480) + "px";
-          ta.style.maxHeight = "";
+        overlay.style.whiteSpace = "pre-wrap";
+        overlay.style.width = el.clientWidth + "px";
+        if (isTextarea && isAutogrow) {
+          overlay.style.height = el.offsetHeight + "px";
+          wrapper.style.height = Math.min(el.offsetHeight, 480) + "px";
+          (el as HTMLTextAreaElement).style.maxHeight = "";
         }
       }
 
       function sync() {
-        if (!isAutogrow) {
+        if (isTextarea && !isAutogrow) {
+          const ta = el as HTMLTextAreaElement;
           ta.style.height = "auto";
           ta.style.height = ta.scrollHeight + "px";
         }
-        overlay.innerHTML = renderMd(ta.value);
+        overlay.innerHTML = renderMd(getText());
         overlay.scrollTop = wrapper.scrollTop;
       }
 
@@ -80,46 +87,46 @@ Exterstellar.register({
         overlay.scrollTop = wrapper.scrollTop;
       });
 
-      ta.addEventListener("input", sync);
-      ta.addEventListener("wheel", onWheel, {passive: false});
+      el.addEventListener("input", sync);
+      el.addEventListener("wheel", onWheel, { passive: false });
 
       const ro = new ResizeObserver(syncStyles);
-      ro.observe(ta);
+      ro.observe(el);
 
       syncStyles();
       sync();
-      instances.set(ta, {overlay, wrapper, ro, onWheel});
+      instances.set(el, { overlay, wrapper, ro, onWheel });
     }
 
-    function detach(ta: HTMLTextAreaElement) {
-      const inst = instances.get(ta);
+    function detach(el: HTMLElement) {
+      const inst = instances.get(el);
       if (!inst) return;
       inst.ro.disconnect();
-      ta.removeEventListener("wheel", inst.onWheel);
+      el.removeEventListener("wheel", inst.onWheel);
       inst.overlay.remove();
-      inst.wrapper.parentNode?.insertBefore(ta, inst.wrapper);
+      inst.wrapper.parentNode?.insertBefore(el, inst.wrapper);
       inst.wrapper.remove();
-      instances.delete(ta);
+      instances.delete(el);
     }
 
     const observer = new MutationObserver(mutations => {
       for (const m of mutations) {
         for (const node of m.addedNodes) {
           if (!(node instanceof Element)) continue;
-          node.querySelectorAll<HTMLTextAreaElement>(".feed-composer__textarea, .devlog-detail__comment-textarea").forEach(attach);
-          if (node.matches?.(".feed-composer__textarea, .devlog-detail__comment-textarea")) attach(node as HTMLTextAreaElement);
+          node.querySelectorAll<HTMLElement>("div.feed-composer__textarea[contenteditable], .devlog-detail__comment-textarea").forEach(attach);
+          if (node.matches?.("div.feed-composer__textarea[contenteditable], .devlog-detail__comment-textarea")) attach(node as HTMLElement);
         }
       }
     });
 
     observer.observe(document.documentElement, {childList: true, subtree: true});
-    document.querySelectorAll<HTMLTextAreaElement>(".feed-composer__textarea, .devlog-detail__comment-textarea").forEach(attach);
+    document.querySelectorAll<HTMLElement>("div.feed-composer__textarea[contenteditable], .devlog-detail__comment-textarea").forEach(attach);
 
     Exterstellar._exports["md-preview"] = {attach, detach};
 
     return function cleanup() {
       observer.disconnect();
-      for (const ta of [...instances.keys()]) detach(ta);
+      for (const el of [...instances.keys()]) detach(el);
       style.remove();
     };
   }
@@ -188,7 +195,6 @@ function buildPreviewCSS(dimRaw: boolean, maxH: number): string {
       color: transparent !important;
       caret-color: var(--color-space-text) !important;
       background: transparent !important;
-      resize: none !important;
     }
 
     .mdp-wrap .devlog-detail__comment-textarea {

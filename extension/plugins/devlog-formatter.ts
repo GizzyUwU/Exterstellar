@@ -101,9 +101,9 @@ Exterstellar.register({
 
     function inject(field: Element): void {
       if (field.querySelector(".fmt-bar")) return;
-      const ta = field.querySelector<HTMLTextAreaElement>(".feed-composer__textarea, .devlog-detail__comment-textarea");
+      const ta = field.querySelector<HTMLTextAreaElement>("textarea.feed-composer__textarea-field, .devlog-detail__comment-textarea");
       if (!ta) return;
-      const dest = field.querySelector(".mdp-wrap") || ta;
+      const dest = field.querySelector(".mdp-wrap") ?? ta;
       dest.parentNode?.insertBefore(buildBar(ta, showLabels), dest);
       field.classList.add("has-fmt-bar");
     }
@@ -136,26 +136,48 @@ Exterstellar.register({
   }
 });
 
+type FmtBtn = | {title: string; svg: string; run: () => void; label?: never} | {title: string; label: string; run: () => void; svg?: never};
+
+function getCE(ta: HTMLTextAreaElement): HTMLElement | null {
+  return ta.closest(".feed-composer__field")?.querySelector<HTMLElement>(".feed-composer__textarea[contenteditable]") ?? null;
+}
+
 function wrapSel(ta: HTMLTextAreaElement, before: string, after: string, placeholder: string): void {
-  const start = ta.selectionStart;
-  const end = ta.selectionEnd;
-  const sel = ta.value.slice(start, end) || placeholder;
-  ta.setRangeText(before + sel + after, start, end, "select");
-  ta.dispatchEvent(new Event("input", {bubbles: true}));
-  ta.focus();
+  const ce = getCE(ta);
+  if (!ce) return;
+  ce.focus();
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const selected = range.toString() || placeholder;
+  range.deleteContents();
+  const node = document.createTextNode(before + selected + after);
+  range.insertNode(node);
+  range.setStartAfter(node);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  ce.dispatchEvent(new Event("input", {bubbles: true}));
 }
 
 function prefixLines(ta: HTMLTextAreaElement, getPrefix: (line: string, idx: number) => string): void {
-  const start = ta.selectionStart;
-  const end = ta.selectionEnd;
-  const sel = ta.value.slice(start, end) || "Item";
-  const replacement = sel.split("\n").map((l, i) => getPrefix(l, i) + l).join("\n");
-  ta.setRangeText(replacement, start, end, "select");
-  ta.dispatchEvent(new Event("input", {bubbles: true}));
-  ta.focus();
+  const ce = getCE(ta);
+  if (!ce) return;
+  ce.focus();
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const selected = range.toString() || "Item";
+  const replacement = selected.split("\n").map((l, i) => getPrefix(l, i) + l).join("\n");
+  range.deleteContents();
+  const node = document.createTextNode(replacement);
+  range.insertNode(node);
+  range.setStartAfter(node);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  ce.dispatchEvent(new Event("input", {bubbles: true}));
 }
-
-type FmtBtn = | {title: string; svg: string; run: () => void; label?: never} | {title: string; label: string; run: () => void; svg?: never};
 
 function buildBar(ta: HTMLTextAreaElement, showLabels: boolean): HTMLElement {
   const bar = document.createElement("div");
@@ -203,12 +225,20 @@ function buildBar(ta: HTMLTextAreaElement, showLabels: boolean): HTMLElement {
         title: "Line Break",
         svg: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-minus-icon lucide-minus"><path d="M5 12h14"/></svg>`,
         run: () => {
-          const start = ta.selectionStart;
-          const before = ta.value.slice(0, start);
-          const prefix = before.length && !before.endsWith("\n") ? "\n" : "";
-          ta.setRangeText(prefix + "---\n", start, ta.selectionEnd, "end");
-          ta.dispatchEvent(new Event("input", {bubbles: true}));
-          ta.focus();
+          const ce = getCE(ta);
+          if (!ce) return;
+          ce.focus();
+          const sel = window.getSelection();
+          if (!sel || !sel.rangeCount) return;
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          const node = document.createTextNode("\n---\n");
+          range.insertNode(node);
+          range.setStartAfter(node);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+          ce.dispatchEvent(new Event("input", {bubbles: true}));
         }
       }
     ],
@@ -225,6 +255,7 @@ function buildBar(ta: HTMLTextAreaElement, showLabels: boolean): HTMLElement {
       const b = document.createElement("button");
       b.type = "button";
       b.title = btn.title;
+      b.addEventListener("mousedown", e => e.preventDefault());
       b.addEventListener("click", btn.run);
 
       if (btn.svg) {
