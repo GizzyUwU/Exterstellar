@@ -166,6 +166,26 @@ Exterstellar.register({
       .rng-odds-chip--mid .rng-odds-chip__pct {color: var(--color-space-text);}
       .rng-odds-chip--low .rng-odds-chip__pct {color: var(--color-space-text-muted);}
 
+      .rng-odds__bar-wrap {
+        height: 4px;
+        border-radius: 2px;
+        background: var(--color-space-surface-faint);
+        overflow: hidden;
+        margin-top: 2px;
+      }
+
+      .rng-odds__bar-fill {
+        height: 100%;
+        border-radius: 2px;
+        background: var(--color-space-accent);
+        width: calc(var(--rng-bar-fill) * 1%);
+        transition: width 400ms ease;
+      }
+
+      .rng-odds--high .rng-odds__bar-fill {background: var(--color-brand-blue);}
+      .rng-odds--mid .rng-odds__bar-fill {background: var(--color-space-text);}
+      .rng-odds--low .rng-odds__bar-fill {background: var(--color-space-text-muted);}
+
       .rng-board__pedestal .rng-odds-chip {
         font-size: 11px;
         padding: 2px 6px;
@@ -228,6 +248,11 @@ Exterstellar.register({
       `;
       widget.appendChild(rowGte);
 
+      const bar = document.createElement("div");
+      bar.className = "rng-odds__bar-wrap";
+      bar.innerHTML = `<span class="rng-odds__bar-fill" style="--rng-bar-fill: ${(pGte * 100).toFixed(4)}"></span>`;
+      widget.appendChild(bar);
+
       if (showEx) {
         const rowEq = document.createElement("div");
         rowEq.className = "rng-odds__row";
@@ -259,6 +284,40 @@ Exterstellar.register({
 
     function injectAll(): void {
       document.querySelectorAll<HTMLElement>("#daily-roll-widget[data-daily-roll-value-value], #rng-hero[data-daily-roll-value-value]").forEach(inject);
+      injectRaffle();
+    }
+
+    function injectRaffle(): void {
+      document.querySelectorAll<HTMLElement>(".raffle-odds").forEach(raffle => {
+        if (raffle.querySelector(".rng-odds")) return;
+
+        const ctx = raffle.querySelector<HTMLElement>(".raffle-odds__ctx");
+        if (!ctx) return;
+
+        const match = ctx.textContent?.match(/1 in ([\d,]+)/);
+        if (!match?.[1]) return;
+
+        const oneIn = parseInt(match[1].replace(/,/g, ""), 10);
+        if (isNaN(oneIn) || oneIn <= 0) return;
+
+        const p = 1 / oneIn;
+
+        const widget = document.createElement("div");
+        widget.className = `rng-odds ${toneClass(Math.round(p * 1000000), "rng-odds")}`;
+
+        widget.innerHTML = `
+          <div class="rng-odds__row">
+            <span class="rng-odds__label">Your chance</span>
+            <span class="rng-odds__value">${fmtPct(p)}</span>
+            <span class="rng-odds__aside">(${fmt1in(p)})</span>
+          </div>
+          <div class="rng-odds__bar-wrap">
+            <span class="rng-odds__bar-fill" style="--rng-bar-fill: ${(p * 100).toFixed(4)}"></span>
+          </div>
+        `;
+
+        raffle.appendChild(widget);
+      });
     }
     
     function buildChip(value: number): HTMLElement {
@@ -295,6 +354,7 @@ Exterstellar.register({
           (m.addedNodes as NodeListOf<Node>).forEach(node => {
             if (!(node instanceof HTMLElement)) return;
             if (node.matches?.("[data-daily-roll-value-value]")) inject(node);
+            if (node.matches?.(".raffle-odds") || node.querySelector?.(".raffle-odds")) injectRaffle()
             node.querySelectorAll?.<HTMLElement>("[data-daily-roll-value-value]").forEach(inject);
             if (node.matches?.(".rng-board__row, .rng-board__pedestal, .rng-board__alltime, .rng-board__list, .rng-board__podium")) boardDirty = true;
             if (node.querySelector?.(".rng-board__row, .rng-board__pedestal-value")) boardDirty = true;
