@@ -49,7 +49,7 @@
   "host_permissions": [
     "https://api.github.com/*",
     "https://gitlab.com/*",
-    "<all_urls>"
+    "https://*/*"
   ],
   "web_accessible_resources": [
     {
