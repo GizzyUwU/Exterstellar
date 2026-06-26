@@ -25,13 +25,13 @@ function multipleBoxShadow(n: number): string {
 }
 
 export default function Home() {
+  const [installUrl, setInstallUrl] = useState("https://chromewebstore.google.com/detail/exterstellar/pnepneldglohbplepnlhfcojeehakcgd");
   const [browser, setBrowser] = useState({
     name: "Chrome",
     disabled: false,
   });
   const [logoSrc, setLogoSrc] = useState(logo);
   const [showScroll, setShowScroll] = useState(true);
-  const [installUrl, setInstallUrl] = useState("https://github.com/Team-Exterstellar/actions/workflow/build-extension-zip.yml");
 
   const MobileParser = (MobileParserModule as any).default;
   let meClicks = 0;
@@ -112,6 +112,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (browser.name === "Chrome") return;
     fetch("https://api.github.com/repos/Team-Exterstellar/Exterstellar/actions/artifacts?per_page=10")
       .then((res) => res.json())
       .then((data) => {
