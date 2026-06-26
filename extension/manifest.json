@@ -35,6 +35,7 @@
         "plugins/shop-goals-enhanced.js",
         "plugins/persistent-devlogs.js",
         "plugins/link-preview.js",
+        "plugins/rng-odds.js",
         "content.js"
       ],
       "run_at": "document_start"
