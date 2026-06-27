@@ -37,6 +37,7 @@
         "plugins/persistent-devlogs.js",
         "plugins/link-preview.js",
         "plugins/rng-odds.js",
+        "plugins/focus-mode.js",
         "content.js"
       ],
       "run_at": "document_start"
