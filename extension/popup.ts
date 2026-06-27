@@ -266,7 +266,8 @@ function renderPlugins(plugins: PluginManifestEntry[] | undefined): void {
   countEl.textContent = `${plugins.length} plugin${plugins.length === 1 ? "" : "s"}`;
 
   plugins
-    .filter((_, i) => i >= 0)
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
     .forEach(p => listEl.appendChild(buildRow(p)));
 }
 
