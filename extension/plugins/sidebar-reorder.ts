@@ -132,7 +132,7 @@ Exterstellar.register({
     function persistOrder(list: Element): void {
       const slugs = [...list.querySelectorAll(":scope > .sidebar__nav-item")].map(slugOf).filter((s): s is string => s !== null);
       savedOrder = slugs;
-      chrome.storage.sync.get({["sidebarOrder"]: slugs}, () => {
+      chrome.storage.sync.set({["sidebarOrder"]: slugs}, () => {
         if (chrome.runtime.lastError) {
           console.warn("[Exterstellar | sidebar-reorder] Couldnt save order:", chrome.runtime.lastError);
         }
