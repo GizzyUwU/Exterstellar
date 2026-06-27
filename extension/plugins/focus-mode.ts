@@ -7,27 +7,50 @@ Exterstellar.register({
   description: "Adds a toggle button to hide sidebars and widen the feed.",
   author: "Sabio",
 
+  config: [
+    {
+      key: "hideLeft",
+      label: "Hide left sidebar",
+      type: "checkbox",
+      default: true,
+    },
+    {
+      key: "hideRight",
+      label: "Hide right sidebar",
+      type: "checkbox",
+      default: true,
+    },
+  ],
+
   start() {
+    const cfg = Exterstellar.getConfig("focus-mode");
+    const hideLeft = cfg.hideLeft !== false && cfg.hideLeft !== "false";
+    const hideRight = cfg.hideRight !== false && cfg.hideRight !== "false";
+
     const style = document.createElement("style");
     style.id = "exterstellar-focus-mode";
     style.textContent = `
-      body.xtr-focus-active .sidebar,
-      body.xtr-focus-active #home_discover_rail {
-        display: none !important;
-      }
+      ${hideLeft ? `body.xtr-focus-active .sidebar {display: none !important;}` : ""}
+      ${hideRight ? `body.xtr-focus-active #home_discover_rail {display: none !important;}` : ""}
 
+      ${hideLeft ? `
       body.xtr-focus-active.signed-in {
         margin-left: 0 !important;
-        margin-right: 0 !important;
       }
-
       body.xtr-focus-active .app-layout {
         margin-left: 0 !important;
+        padding-left: 0;
+      }` : ""}
+
+      ${hideRight ? `
+      body.xtr-focus-active.signed-in {
+        margin-right: 0 !important;
+      }
+      body.xtr-focus-active .app-layout {
         margin-right: 0 !important;
         max-width: 100% !important;
-        padding-left: 0;
         padding-right: 0;
-      }
+      }` : ""}
 
       body.xtr-focus-active .app-layout__main {
         max-width: 50dvw !important;
