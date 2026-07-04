@@ -166,26 +166,6 @@ Exterstellar.register({
       .rng-odds-chip--mid .rng-odds-chip__pct {color: var(--color-space-text);}
       .rng-odds-chip--low .rng-odds-chip__pct {color: var(--color-space-text-muted);}
 
-      .rng-odds__bar-wrap {
-        height: 4px;
-        border-radius: 2px;
-        background: var(--color-space-surface-faint);
-        overflow: hidden;
-        margin-top: 2px;
-      }
-
-      .rng-odds__bar-fill {
-        height: 100%;
-        border-radius: 2px;
-        background: var(--color-space-accent);
-        width: calc(var(--rng-bar-fill) * 1%);
-        transition: width 400ms ease;
-      }
-
-      .rng-odds--high .rng-odds__bar-fill {background: var(--color-brand-blue);}
-      .rng-odds--mid .rng-odds__bar-fill {background: var(--color-space-text);}
-      .rng-odds--low .rng-odds__bar-fill {background: var(--color-space-text-muted);}
-
       .rng-board__pedestal .rng-odds-chip {
         font-size: 11px;
         padding: 2px 6px;
@@ -232,7 +212,7 @@ Exterstellar.register({
     }
 
     function buildWidget(value: number): HTMLElement {
-      const pGte = pAtLeast(value);
+      const pGte = value === 0 ? pExact(0) : pAtLeast(value);
       const pEq = pExact(value);
 
       const widget = document.createElement("div");
@@ -247,11 +227,6 @@ Exterstellar.register({
         <span class="rng-odds__aside">(${fmt1in(pGte)})</span>
       `;
       widget.appendChild(rowGte);
-
-      const bar = document.createElement("div");
-      bar.className = "rng-odds__bar-wrap";
-      bar.innerHTML = `<span class="rng-odds__bar-fill" style="--rng-bar-fill: ${(pGte * 100).toFixed(4)}"></span>`;
-      widget.appendChild(bar);
 
       if (showEx) {
         const rowEq = document.createElement("div");
@@ -310,9 +285,6 @@ Exterstellar.register({
             <span class="rng-odds__label">Your chance</span>
             <span class="rng-odds__value">${fmtPct(p)}</span>
             <span class="rng-odds__aside">(${fmt1in(p)})</span>
-          </div>
-          <div class="rng-odds__bar-wrap">
-            <span class="rng-odds__bar-fill" style="--rng-bar-fill: ${(p * 100).toFixed(4)}"></span>
           </div>
         `;
 
