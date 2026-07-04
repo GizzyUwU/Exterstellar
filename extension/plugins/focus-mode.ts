@@ -31,7 +31,7 @@ Exterstellar.register({
     style.id = "exterstellar-focus-mode";
     style.textContent = `
       ${hideLeft ? `body.xtr-focus-active .sidebar {display: none !important;}` : ""}
-      ${hideRight ? `body.xtr-focus-active #home_discover_rail {display: none !important;}` : ""}
+      ${hideRight ? `body.xtr-focus-active .discover-rail {display: none !important;}` : ""}
 
       ${hideLeft ? `
       body.xtr-focus-active.signed-in {
