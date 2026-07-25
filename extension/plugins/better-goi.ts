@@ -104,7 +104,7 @@ function injectSearchBar(form: Element) {
 }
 
 function handleQueuePage(cfg: Record<string, string | number | boolean>) {
-  if (cfg.search !== false && cfg.search !== "false") return;
+  if (cfg.search == false || cfg.search === "false") return;
   const form = document.querySelector("form.ysws-queue__filters");
   if (form) injectSearchBar(form);
 
@@ -280,7 +280,7 @@ async function injectAllProjectsCommits(div: Element) {
 }
 
 function handleReviewDetailPage(cfg: Record<string, string | number | boolean>) {
-  if (cfg.git !== false && cfg.git !== "false") return;
+  if (cfg.git === false || cfg.git === "false") return;
   const sidebar = document.querySelector(REVIEW_DETAIL_SIDEBAR_SELECTOR);
   if (sidebar) injectAllProjectsCommits(sidebar);
 }
@@ -422,7 +422,7 @@ function injectChartControls(panel: Element, canvas: HTMLCanvasElement) {
 
 function handleChartControls(cfg: Record<string, string | number | boolean>) {
   if (document.getElementById(CHART_CONTROLS_ID)) return;
-  if (cfg.graphs !== false && cfg.graphs !== "false") return;
+  if (cfg.graphs == false || cfg.graphs === "false") return;
   let attempts = 0;
   const tryInject = () => {
     const chartWrapper = document.querySelector(CHART_WRAPPER_SELECTOR);
