@@ -18,12 +18,11 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://*.stardance.hackclub.com/*"
-      ],
+      "matches": ["https://*.stardance.hackclub.com/*"],
       "js": [
         "plugins/registry.js",
         "plugins/better-sidebar.js",
+        "plugins/better-goi.js",
         "plugins/custom-font.js",
         "plugins/scrollbar.js",
         "plugins/oneko.js",
@@ -43,10 +42,7 @@
       "run_at": "document_start"
     }
   ],
-  "permissions": [
-    "storage",
-    "tabs"
-  ],
+  "permissions": ["storage", "tabs", "scripting"],
   "host_permissions": [
     "https://api.github.com/*",
     "https://gitlab.com/*",
@@ -63,9 +59,7 @@
       "id": "exterstellar@extension",
       "strict_min_version": "109.0",
       "data_collection_permissions": {
-        "required": [
-          "none"
-        ]
+        "required": ["none"]
       }
     }
   }
