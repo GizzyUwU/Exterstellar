@@ -130,6 +130,120 @@ function handleQueuePage(cfg: Record<string, string | number | boolean>) {
   if (search?.value) filterTable(search.value, cfg);
 }
 
+// Devlog MD
+const DEVLOG_ITEM_SELECTOR = ".devlog-item";
+const DEVLOG_DESC_SELECTOR = ".devlog-desc";
+const DEVLOG_MD_PROCESSED_ATTR = "data-goi-md-rendered";
+ 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+ 
+function formatInline(escaped: string): string {
+  let out = escaped.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
+  );
+  out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  out = out.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+  out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+  out = out.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, "$1<em>$2</em>");
+  out = out.replace(/(^|[^_])_([^_]+)_(?!_)/g, "$1<em>$2</em>");
+  return out;
+}
+ 
+function renderDevlogMarkdown(raw: string): string {
+  const normalized = raw.replace(/<br\s*\/?>/gi, "\n");
+  const lines = normalized.split("\n");
+ 
+  const htmlParts: string[] = [];
+  let paragraphBuffer: string[] = [];
+  let listBuffer: string[] = [];
+ 
+  const flushParagraph = () => {
+    if (paragraphBuffer.length) {
+      htmlParts.push(`<p>${paragraphBuffer.join("<br>")}</p>`);
+      paragraphBuffer = [];
+    }
+  };
+ 
+  const flushList = () => {
+    if (listBuffer.length) {
+      htmlParts.push(
+        `<ul>${listBuffer.map((i) => `<li>${i}</li>`).join("")}</ul>`,
+      );
+      listBuffer = [];
+    }
+  };
+ 
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+ 
+    if (!line) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+ 
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      flushParagraph();
+      flushList();
+      const level = (headingMatch[1] ?? "").length;
+      const text = formatInline(escapeHtml((headingMatch[2] ?? "").trim()));
+      htmlParts.push(`<h${level}>${text}</h${level}>`);
+      continue;
+    }
+ 
+    const listMatch = line.match(/^[-*]\s+(.*)$/);
+    if (listMatch) {
+      flushParagraph();
+      listBuffer.push(formatInline(escapeHtml((listMatch[1] ?? "").trim())));
+      continue;
+    }
+ 
+    flushList();
+    paragraphBuffer.push(formatInline(escapeHtml(line)));
+  }
+ 
+  flushParagraph();
+  flushList();
+ 
+  return htmlParts.join("");
+}
+ 
+function formatDevlogDesc(desc: HTMLElement) {
+  if (desc.getAttribute(DEVLOG_MD_PROCESSED_ATTR) === "1") return;
+ 
+  const raw = desc.textContent ?? "";
+  if (!raw.trim()) return;
+ 
+  const rendered = renderDevlogMarkdown(raw);
+  const replacement = document.createElement("div");
+  replacement.className = desc.className;
+  replacement.classList.add("exterstellar-better-goi-devlog-md");
+  replacement.setAttribute(DEVLOG_MD_PROCESSED_ATTR, "1");
+  replacement.innerHTML = rendered;
+ 
+  desc.replaceWith(replacement);
+}
+ 
+function handleDevlogMarkdown(cfg: Record<string, string | number | boolean>) {
+  if (cfg.markdown === false || cfg.markdown === "false") return;
+ 
+  const items = document.querySelectorAll(DEVLOG_ITEM_SELECTOR);
+  for (const item of Array.from(items)) {
+    const desc = item.querySelector<HTMLElement>(DEVLOG_DESC_SELECTOR);
+    if (desc) formatDevlogDesc(desc);
+  }
+}
+ 
+
 // All git commits on review
 type Commit = {
   hash: string;
@@ -518,6 +632,37 @@ const GOI_CSS = `
     max-height: 350px;
     overflow-y: auto;
   }
+
+  body::-webkit-scrollbar {
+    width: 12px;
+    background: rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Track */
+  body::-webkit-scrollbar-track {
+    width: 12px;
+    background:  rgba(5, 4, 24, 0.02);
+  }
+  
+  body::-webkit-scrollbar-thumb {
+    width: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    
+  }
+  
+  body::-webkit-scrollbar-thumb:hover {
+    width: 12px;
+  }
+
+  .certification-ysws .review-detail-right.is-popup-mode {
+    overflow-y: scroll;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .certification-ysws .review-detail-right.is-popup-mode::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 if (sessionStorage.getItem("_ext_better-goi_pre") === "1") {
@@ -597,6 +742,7 @@ Exterstellar.register({
       }
       if (isReviewDetailPage()) {
         handleReviewDetailPage(cfg);
+        handleDevlogMarkdown(cfg);
       }
     };
 
