@@ -50,36 +50,52 @@ function getRowSearchData(row: HTMLTableRowElement): RowSearchData {
   return { reviewId, projectName, projectId, userName, userId };
 }
 
-function filterTable(query: string) {
-  const q = query.trim().toLowerCase();
+async function handleSWDashLinks(id: string, cfg: Record<string, string | number | boolean>) {
+  return await chrome.runtime.sendMessage({
+    type: "FETCH_SW_CERT",
+    id,
+    swCookie: "session=" + cfg.swCookie
+  });
+}
+
+async function filterTable(query: string, cfg: Record<string, string | number | boolean>) {
+  let q = query.trim().toLowerCase();
+  let isSWLink = false;
+
+  const swMatch = query.trim().match(/ds\.shipwrights\.dev\/stardance\/certifications\/([0-9a-f-]{36})/i);
+  if (swMatch && cfg.swCookie) {
+    const projectId = await handleSWDashLinks(swMatch[1] ?? "", cfg);
+    if (projectId) {
+      q = String(projectId).toLowerCase();
+      isSWLink = true;
+    }
+  }
+
   const table = document.querySelector(".ysws-queue__table-container table");
   if (!table) return;
-
   const rows = Array.from(
     table.querySelectorAll("tbody tr"),
   ) as HTMLTableRowElement[];
-
   for (const row of rows) {
     if (!q) {
       row.style.display = "";
       continue;
     }
-
     const { reviewId, projectName, projectId, userName, userId } =
       getRowSearchData(row);
-    const matches =
-      reviewId.includes(q) ||
-      projectName.includes(q) ||
-      projectId.includes(q) ||
-      userName.includes(q) ||
-      userId.includes(q) ||
-      reviewId.replace("#", "").includes(q.replace("#", ""));
-
+    const matches = isSWLink
+      ? projectId.includes(q)
+      : reviewId.includes(q) ||
+        projectName.includes(q) ||
+        projectId.includes(q) ||
+        userName.includes(q) ||
+        userId.includes(q) ||
+        reviewId.replace("#", "").includes(q.replace("#", ""));
     row.style.display = matches ? "" : "none";
   }
 }
 
-function injectSearchBar(form: Element) {
+function injectSearchBar(form: Element, cfg: Record<string, string | number | boolean>) {
   if (form.previousElementSibling?.id === SEARCH_WRAPPER_ID) return;
 
   const wrapper = document.createElement("div");
@@ -95,7 +111,7 @@ function injectSearchBar(form: Element) {
   search.classList.add("exterstellar-better-goi-search");
   search.placeholder =
     "Search by Review ID, Project Name, Project ID, Username or User ID...";
-  search.addEventListener("input", () => filterTable(search.value));
+  search.addEventListener("input", () => filterTable(search.value, cfg));
 
   wrapper.appendChild(search);
   wrapper.appendChild(iconSpan);
@@ -106,14 +122,15 @@ function injectSearchBar(form: Element) {
 function handleQueuePage(cfg: Record<string, string | number | boolean>) {
   if (cfg.search == false || cfg.search === "false") return;
   const form = document.querySelector("form.ysws-queue__filters");
-  if (form) injectSearchBar(form);
+  if (form) injectSearchBar(form, cfg);
 
   const search = document.getElementById(
     SEARCH_INPUT_ID,
   ) as HTMLInputElement | null;
-  if (search?.value) filterTable(search.value);
+  if (search?.value) filterTable(search.value, cfg);
 }
 
+// All git commits on review
 type Commit = {
   hash: string;
   message: string;
@@ -219,7 +236,6 @@ function formatDate(date: string) {
   }).format(new Date(date));
 }
 
-// All git commits on review
 async function injectAllProjectsCommits(div: Element) {
   if (div.querySelector("#allProjectCommits")) return;
   const sectionDetails = document.createElement("section");
@@ -522,6 +538,13 @@ Exterstellar.register({
       label: "Preload CSS before paint",
       type: "checkbox",
       default: true
+    },
+    {
+      key: "swCookie",
+      label: "SW Cookie (optional)",
+      type: "text",
+      placeholder: "...",
+      default: ""
     },
     {
       key: "search",
