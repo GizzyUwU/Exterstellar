@@ -13,54 +13,54 @@ Exterstellar.register({
       label: "Theme",
       type: "select",
       options: [
-        {value: "default", label: "Default"},
-        {value: "catppuccin", label: "Catppuccin"}
+        { value: "default", label: "Default" },
+        { value: "catppuccin", label: "Catppuccin" },
       ],
-      default: "default"
+      default: "default",
     },
     {
       key: "flavor",
       label: "Catppuccin flavor",
       type: "select",
-      showIf: {key: "theme", value: "catppuccin"},
+      showIf: { key: "theme", value: "catppuccin" },
       options: [
-        {value: "mocha", label: "Mocha"},
-        {value: "macchiato", label: "Macchiato"},
-        {value: "frappe", label: "Frappe"},
-        {value: "latte", label: "Latte (WIP)"} // (latte is really broken holy)
+        { value: "mocha", label: "Mocha" },
+        { value: "macchiato", label: "Macchiato" },
+        { value: "frappe", label: "Frappe" },
+        { value: "latte", label: "Latte (WIP)" }, // (latte is really broken holy)
       ],
-      default: "mocha"
+      default: "mocha",
     },
     {
       key: "accent",
       label: "Catppuccin accent",
       type: "select",
-      showIf: {key: "theme", value: "catppuccin"},
+      showIf: { key: "theme", value: "catppuccin" },
       options: [
-        {value: "rosewater", label: "Rosewater"},
-        {value: "flamingo", label: "Flamingo"},
-        {value: "pink", label: "Pink"},
-        {value: "mauve", label: "Mauve"},
-        {value: "red", label: "Red"},
-        {value: "maroon", label: "Maroon"},
-        {value: "peach", label: "Peach"},
-        {value: "yellow", label: "Yellow"},
-        {value: "green", label: "Green"},
-        {value: "teal", label: "Teal"},
-        {value: "sky", label: "Sky"},
-        {value: "sapphire", label: "Sapphire"},
-        {value: "blue", label: "Blue"},
-        {value: "lavender", label: "Lavender"},
+        { value: "rosewater", label: "Rosewater" },
+        { value: "flamingo", label: "Flamingo" },
+        { value: "pink", label: "Pink" },
+        { value: "mauve", label: "Mauve" },
+        { value: "red", label: "Red" },
+        { value: "maroon", label: "Maroon" },
+        { value: "peach", label: "Peach" },
+        { value: "yellow", label: "Yellow" },
+        { value: "green", label: "Green" },
+        { value: "teal", label: "Teal" },
+        { value: "sky", label: "Sky" },
+        { value: "sapphire", label: "Sapphire" },
+        { value: "blue", label: "Blue" },
+        { value: "lavender", label: "Lavender" },
       ],
-      default: "mauve"
+      default: "mauve",
     },
     {
       key: "accentAll",
       label: "Use accent color for all colors",
       type: "checkbox",
-      showIf: {key: "theme", value: "catppuccin"},
-      default: false
-    }
+      showIf: { key: "theme", value: "catppuccin" },
+      default: false,
+    },
   ],
 
   start() {
@@ -77,11 +77,13 @@ Exterstellar.register({
 
     const base = THEME_PALLETES[theme]?.[flavor];
     if (!base) {
-      console.warn(`[Exterstellar | themes] Unknown flavor "${flavor}" for theme "${theme}"`);
+      console.warn(
+        `[Exterstellar | themes] Unknown flavor "${flavor}" for theme "${theme}"`,
+      );
       return;
     }
 
-    const vars = {...base};
+    const vars = { ...base };
     const accentHex = CATPPUCCIN_ACCENTS[flavor]?.[accent];
     if (accentHex) {
       vars["--color-space-accent"] = accentHex;
@@ -91,7 +93,10 @@ Exterstellar.register({
       }
     }
 
-    sessionStorage.setItem("_ext_themes_pre", `${theme}:${flavor}:${accent}:${accentAll ? "1" : "0"}`);
+    sessionStorage.setItem(
+      "_ext_themes_pre",
+      `${theme}:${flavor}:${accent}:${accentAll ? "1" : "0"}`,
+    );
 
     let style = document.getElementById("exterstellar-themes");
     if (!style) {
@@ -102,11 +107,13 @@ Exterstellar.register({
     document.head.appendChild(style);
 
     return () => style.remove();
-  }
+  },
 });
 
 function buildRootBlock(vars: CssVarMap): string {
-  return `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join("\n")}\n}`;
+  return `:root {\n${Object.entries(vars)
+    .map(([k, v]) => `  ${k}: ${v};`)
+    .join("\n")}\n}`;
 }
 
 function hexToRgb(hex: string): string {
@@ -138,14 +145,15 @@ function deriveAccentPalette(accentHex: string): CssVarMap {
     "--color-brand-salmon-soft": `rgb(${rgb} / 0.18)`,
     "--color-brand-yellow-soft": `rgb(${rgb} / 0.18)`,
     "--color-brand-orange-soft": `rgb(${rgb} / 0.18)`,
-    "--color-yellow-200": accentHex,  
-  }
+    "--color-yellow-200": accentHex,
+  };
 }
 
 const THEME_PALLETES: Record<string, FlavorMap> = {
   catppuccin: {
     mocha: {
       "--color-space-bg": "#1e1e2e",
+      "--color-set-1-bg": "#1e1e2e",
       "--color-space-bg-2": "#181825",
       "--color-space-text": "#cdd6f4",
       "--color-space-text-muted": "rgb(186 194 222 / 0.75)",
@@ -168,6 +176,7 @@ const THEME_PALLETES: Record<string, FlavorMap> = {
     },
     macchiato: {
       "--color-space-bg": "#24273a",
+      "--color-set-1-bg": "#24273a",
       "--color-space-bg-2": "#1e2030",
       "--color-space-text": "#cad3f5",
       "--color-space-text-muted": "rgb(184 192 224 / 0.75)",
@@ -190,13 +199,14 @@ const THEME_PALLETES: Record<string, FlavorMap> = {
     },
     frappe: {
       "--color-space-bg": "#303446",
+      "--color-set-1-bg": "#303446",
       "--color-space-bg-2": "#292c3c",
       "--color-space-text": "#c6d0f5",
       "--color-space-text-muted": "rgb(181 191 226 / 0.75)",
       "--color-space-accent": "#ca9ee6",
       "--color-space-accent-soft": "rgb(202 158 230 / 0.18)",
       "--color-space-card": "rgb(65 69 89 / 0.45)",
-      "--color-space-surface":  "#737994",
+      "--color-space-surface": "#737994",
       "--color-space-surface-soft": "rgb(115 121 148 / 0.5)",
       "--color-space-surface-strong": "rgb(115 121 148 / 0.85)",
       "--color-space-surface-faint": "rgb(115 121 148 / 0.18)",
@@ -212,6 +222,7 @@ const THEME_PALLETES: Record<string, FlavorMap> = {
     },
     latte: {
       "--color-space-bg": "#eff1f5",
+      "--color-set-1-bg": "#eff1f5",
       "--color-space-bg-2": "#e6e9ef",
       "--color-space-text": "#4c4f69",
       "--color-space-text-muted": "rgb(92 95 119 / 0.85)",
@@ -235,33 +246,84 @@ const THEME_PALLETES: Record<string, FlavorMap> = {
       "--color-brand-salmon": "#e64553",
       "--color-brand-yellow": "#df8e1d",
       "--color-brand-peach": "#fe640b",
-    }
-  }
+    },
+  },
 };
 
 const CATPPUCCIN_ACCENTS: Record<string, Record<string, string>> = {
   mocha: {
-    rosewater: "#f5e0dc", flamingo: "#f2cdcd", pink: "#f5c2e7", mauve: "#cba6f7", red: "#f38ba8", maroon: "#eba0ac", peach: "#fab387", yellow: "#f9e2af", green: "#a6e3a1",
-    teal: "#94e2d5", sky: "#89dceb", sapphire: "#74c7ec", blue: "#89b4fa", lavender: "#b4befe",
+    rosewater: "#f5e0dc",
+    flamingo: "#f2cdcd",
+    pink: "#f5c2e7",
+    mauve: "#cba6f7",
+    red: "#f38ba8",
+    maroon: "#eba0ac",
+    peach: "#fab387",
+    yellow: "#f9e2af",
+    green: "#a6e3a1",
+    teal: "#94e2d5",
+    sky: "#89dceb",
+    sapphire: "#74c7ec",
+    blue: "#89b4fa",
+    lavender: "#b4befe",
   },
   macchiato: {
-    rosewater: "#f4dbd6", flamingo: "#f0c6c6", pink: "#f5bde6", mauve: "#c6a0f6", red: "#ed8796", maroon: "#ee99a0", peach: "#f5a97f", yellow: "#eed49f", green: "#a6da95",
-    teal: "#8bd5ca", sky: "#91d7e3", sapphire: "#7dc4e4", blue: "#8aadf4", lavender: "#b7bdf8",
+    rosewater: "#f4dbd6",
+    flamingo: "#f0c6c6",
+    pink: "#f5bde6",
+    mauve: "#c6a0f6",
+    red: "#ed8796",
+    maroon: "#ee99a0",
+    peach: "#f5a97f",
+    yellow: "#eed49f",
+    green: "#a6da95",
+    teal: "#8bd5ca",
+    sky: "#91d7e3",
+    sapphire: "#7dc4e4",
+    blue: "#8aadf4",
+    lavender: "#b7bdf8",
   },
   frappe: {
-    rosewater: "#f2d5cf", flamingo: "#eebebe", pink: "#f4b8e4", mauve: "#ca9ee6", red: "#e78284", maroon: "#ea999c", peach: "#ef9f76", yellow: "#e5c890", green: "#a6d189",
-    teal: "#81c8be", sky: "#99d1db", sapphire: "#85c1dc", blue: "#8caaee", lavender: "#babbf1",
+    rosewater: "#f2d5cf",
+    flamingo: "#eebebe",
+    pink: "#f4b8e4",
+    mauve: "#ca9ee6",
+    red: "#e78284",
+    maroon: "#ea999c",
+    peach: "#ef9f76",
+    yellow: "#e5c890",
+    green: "#a6d189",
+    teal: "#81c8be",
+    sky: "#99d1db",
+    sapphire: "#85c1dc",
+    blue: "#8caaee",
+    lavender: "#babbf1",
   },
   latte: {
-    rosewater: "#dc8a78", flamingo: "#dd7878", pink: "#ea76cb", mauve: "#8839ef", red: "#d20f39", maroon: "#e64553", peach: "#fe640b", yellow: "#df8e1d", green: "#40a02b",
-    teal: "#179299", sky: "#04a5e5", sapphire: "#209fb5", blue: "#1e66f5", lavender: "#7287fd",
-  }
+    rosewater: "#dc8a78",
+    flamingo: "#dd7878",
+    pink: "#ea76cb",
+    mauve: "#8839ef",
+    red: "#d20f39",
+    maroon: "#e64553",
+    peach: "#fe640b",
+    yellow: "#df8e1d",
+    green: "#40a02b",
+    teal: "#179299",
+    sky: "#04a5e5",
+    sapphire: "#209fb5",
+    blue: "#1e66f5",
+    lavender: "#7287fd",
+  },
 };
 
 const _preKey = sessionStorage.getItem("_ext_themes_pre");
 if (_preKey) {
   const parts = _preKey.split(":");
-  const _t = parts[0], _f = parts[1], _a = parts[2], _aa = parts[3];
+  const _t = parts[0],
+    _f = parts[1],
+    _a = parts[2],
+    _aa = parts[3];
   if (_t && _f) {
     const _base = THEME_PALLETES[_t]?.[_f];
     if (_base) {
@@ -269,7 +331,8 @@ if (_preKey) {
       const _accentHex = _a ? CATPPUCCIN_ACCENTS[_f]?.[_a] : undefined;
       if (_accentHex) {
         _vars["--color-space-accent"] = _accentHex;
-        _vars["--color-space-accent-soft"] = `rgb(${hexToRgb(_accentHex)} / 0.18)`;
+        _vars["--color-space-accent-soft"] =
+          `rgb(${hexToRgb(_accentHex)} / 0.18)`;
         if (_aa === "1") Object.assign(_vars, deriveAccentPalette(_accentHex));
       }
       const s = document.createElement("style");
