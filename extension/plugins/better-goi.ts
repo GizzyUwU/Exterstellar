@@ -381,7 +381,7 @@ async function injectAllProjectsCommits(div: Element) {
       div.appendChild(sectionDetails);
       return;
     } else {
-      for (const commit of commitsData) {
+      for (const commit of commitsData.reverse()) {
         const commitDiv = document.createElement("div")
         commitDiv.classList.add("detail-item");
         const commitKeyMSG = document.createElement("span")
