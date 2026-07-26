@@ -21,6 +21,7 @@ interface RowSearchData {
   projectId: string;
   userName: string;
   userId: string;
+  lengthHours: string;
 }
 
 function getRowSearchData(row: HTMLTableRowElement): RowSearchData {
@@ -38,6 +39,7 @@ function getRowSearchData(row: HTMLTableRowElement): RowSearchData {
     projectId = match?.[1] ?? "";
   }
 
+  const lengthHours = cells[4]?.textContent?.trim().toLowerCase() ?? "";
   const userCell = cells[3];
   const userLink = userCell?.querySelector("a") as HTMLAnchorElement | null;
   const userName = userLink?.textContent?.trim().toLowerCase() ?? "";
@@ -47,39 +49,81 @@ function getRowSearchData(row: HTMLTableRowElement): RowSearchData {
     userId = match?.[1] ?? "";
   }
 
-  return { reviewId, projectName, projectId, userName, userId };
+  return { reviewId, projectName, projectId, userName, userId, lengthHours };
 }
 
-function filterTable(query: string) {
-  const q = query.trim().toLowerCase();
+function parseDevTimeToHours(raw: string): number {
+  const trimmed = raw.trim();
+
+  const hMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*h/i);
+  const mMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*m/i);
+
+  if (hMatch || mMatch) {
+    const hours = hMatch ? parseFloat(hMatch[1] ?? "0") : 0;
+    const minutes = mMatch ? parseFloat(mMatch[1] ?? "0") : 0;
+    return hours + minutes / 60;
+  }
+
+  const plain = parseFloat(trimmed);
+  return Number.isNaN(plain) ? 0 : plain;
+}
+
+const DEV_TIME_LEEWAY_HOURS = 0.25;
+
+async function handleSWDashLinks(id: string, cfg: Record<string, string | number | boolean>) {
+  return await chrome.runtime.sendMessage({
+    type: "FETCH_SW_CERT",
+    id,
+    swCookie: "session=" + cfg.swCookie
+  });
+}
+
+async function filterTable(query: string, cfg: Record<string, string | number | boolean>) {
+  let q = query.trim().toLowerCase();
+  let isSWLink = false;
+  let swProjectName = "";
+  let swDevTimeHours = 0;
+
+  const swMatch = query.trim().match(/ds\.shipwrights\.dev\/stardance\/certifications\/([0-9a-f-]{36})/i);
+  if (swMatch && cfg.swCookie) {
+    const project = await handleSWDashLinks(swMatch[1] ?? "", cfg);
+    if (project?.projectName) {
+      swProjectName = String(project.projectName).trim().toLowerCase();
+      swDevTimeHours = parseDevTimeToHours(String(project.devTime ?? ""));
+      isSWLink = true;
+    }
+  }
+
   const table = document.querySelector(".ysws-queue__table-container table");
   if (!table) return;
-
   const rows = Array.from(
     table.querySelectorAll("tbody tr"),
   ) as HTMLTableRowElement[];
 
   for (const row of rows) {
-    if (!q) {
+    if (!q && !isSWLink) {
       row.style.display = "";
       continue;
     }
-
-    const { reviewId, projectName, projectId, userName, userId } =
+    const { reviewId, projectName, projectId, userName, userId, lengthHours } =
       getRowSearchData(row);
-    const matches =
-      reviewId.includes(q) ||
-      projectName.includes(q) ||
-      projectId.includes(q) ||
-      userName.includes(q) ||
-      userId.includes(q) ||
-      reviewId.replace("#", "").includes(q.replace("#", ""));
+
+    console.log(isSWLink);
+    const matches = isSWLink
+      ? projectName.toLowerCase() === swProjectName &&
+        Math.abs(parseDevTimeToHours(lengthHours ?? "") - swDevTimeHours) <= DEV_TIME_LEEWAY_HOURS
+      : reviewId.includes(q) ||
+        projectName.includes(q) ||
+        projectId.includes(q) ||
+        userName.includes(q) ||
+        userId.includes(q) ||
+        reviewId.replace("#", "").includes(q.replace("#", ""));
 
     row.style.display = matches ? "" : "none";
   }
 }
 
-function injectSearchBar(form: Element) {
+function injectSearchBar(form: Element, cfg: Record<string, string | number | boolean>) {
   if (form.previousElementSibling?.id === SEARCH_WRAPPER_ID) return;
 
   const wrapper = document.createElement("div");
@@ -95,7 +139,7 @@ function injectSearchBar(form: Element) {
   search.classList.add("exterstellar-better-goi-search");
   search.placeholder =
     "Search by Review ID, Project Name, Project ID, Username or User ID...";
-  search.addEventListener("input", () => filterTable(search.value));
+  search.addEventListener("input", () => filterTable(search.value, cfg));
 
   wrapper.appendChild(search);
   wrapper.appendChild(iconSpan);
@@ -106,14 +150,129 @@ function injectSearchBar(form: Element) {
 function handleQueuePage(cfg: Record<string, string | number | boolean>) {
   if (cfg.search == false || cfg.search === "false") return;
   const form = document.querySelector("form.ysws-queue__filters");
-  if (form) injectSearchBar(form);
+  if (form) injectSearchBar(form, cfg);
 
   const search = document.getElementById(
     SEARCH_INPUT_ID,
   ) as HTMLInputElement | null;
-  if (search?.value) filterTable(search.value);
+  if (search?.value) filterTable(search.value, cfg);
 }
 
+// Devlog MD
+const DEVLOG_ITEM_SELECTOR = ".devlog-item";
+const DEVLOG_DESC_SELECTOR = ".devlog-desc";
+const DEVLOG_MD_PROCESSED_ATTR = "data-goi-md-rendered";
+ 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+ 
+function formatInline(escaped: string): string {
+  let out = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, text, href) => {
+    const safeHref = escapeHtml(String(href));
+    return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  });
+  out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  out = out.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+  out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+  out = out.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, "$1<em>$2</em>");
+  out = out.replace(/(^|[^_])_([^_]+)_(?!_)/g, "$1<em>$2</em>");
+  return out;
+}
+ 
+function renderDevlogMarkdown(raw: string): string {
+  const normalized = raw.replace(/<br\s*\/?>/gi, "\n");
+  const lines = normalized.split("\n");
+ 
+  const htmlParts: string[] = [];
+  let paragraphBuffer: string[] = [];
+  let listBuffer: string[] = [];
+ 
+  const flushParagraph = () => {
+    if (paragraphBuffer.length) {
+      htmlParts.push(`<p>${paragraphBuffer.join("<br>")}</p>`);
+      paragraphBuffer = [];
+    }
+  };
+ 
+  const flushList = () => {
+    if (listBuffer.length) {
+      htmlParts.push(
+        `<ul>${listBuffer.map((i) => `<li>${i}</li>`).join("")}</ul>`,
+      );
+      listBuffer = [];
+    }
+  };
+ 
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+ 
+    if (!line) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+ 
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      flushParagraph();
+      flushList();
+      const level = (headingMatch[1] ?? "").length;
+      const text = formatInline(escapeHtml((headingMatch[2] ?? "").trim()));
+      htmlParts.push(`<h${level}>${text}</h${level}>`);
+      continue;
+    }
+ 
+    const listMatch = line.match(/^[-*]\s+(.*)$/);
+    if (listMatch) {
+      flushParagraph();
+      listBuffer.push(formatInline(escapeHtml((listMatch[1] ?? "").trim())));
+      continue;
+    }
+ 
+    flushList();
+    paragraphBuffer.push(formatInline(escapeHtml(line)));
+  }
+ 
+  flushParagraph();
+  flushList();
+ 
+  return htmlParts.join("");
+}
+ 
+function formatDevlogDesc(desc: HTMLElement) {
+  if (desc.getAttribute(DEVLOG_MD_PROCESSED_ATTR) === "1") return;
+ 
+  const raw = desc.innerHTML ?? "";
+  if (!raw.trim()) return;
+ 
+  const rendered = renderDevlogMarkdown(raw);
+  const replacement = document.createElement("div");
+  replacement.className = desc.className;
+  replacement.classList.add("exterstellar-better-goi-devlog-md");
+  replacement.setAttribute(DEVLOG_MD_PROCESSED_ATTR, "1");
+  replacement.innerHTML = rendered;
+ 
+  desc.replaceWith(replacement);
+}
+ 
+function handleDevlogMarkdown(cfg: Record<string, string | number | boolean>) {
+  if (cfg.markdown === false || cfg.markdown === "false") return;
+ 
+  const items = document.querySelectorAll(DEVLOG_ITEM_SELECTOR);
+  for (const item of Array.from(items)) {
+    const desc = item.querySelector<HTMLElement>(DEVLOG_DESC_SELECTOR);
+    if (desc) formatDevlogDesc(desc);
+  }
+}
+ 
+
+// All git commits on review
 type Commit = {
   hash: string;
   message: string;
@@ -219,7 +378,6 @@ function formatDate(date: string) {
   }).format(new Date(date));
 }
 
-// All git commits on review
 async function injectAllProjectsCommits(div: Element) {
   if (div.querySelector("#allProjectCommits")) return;
   const sectionDetails = document.createElement("section");
@@ -251,7 +409,7 @@ async function injectAllProjectsCommits(div: Element) {
       div.appendChild(sectionDetails);
       return;
     } else {
-      for (const commit of commitsData) {
+      for (const commit of commitsData.reverse()) {
         const commitDiv = document.createElement("div")
         commitDiv.classList.add("detail-item");
         const commitKeyMSG = document.createElement("span")
@@ -502,6 +660,37 @@ const GOI_CSS = `
     max-height: 350px;
     overflow-y: auto;
   }
+
+  body::-webkit-scrollbar {
+    width: 12px;
+    background: rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Track */
+  body::-webkit-scrollbar-track {
+    width: 12px;
+    background:  rgba(5, 4, 24, 0.02);
+  }
+  
+  body::-webkit-scrollbar-thumb {
+    width: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    
+  }
+  
+  body::-webkit-scrollbar-thumb:hover {
+    width: 12px;
+  }
+
+  .certification-ysws .review-detail-right.is-popup-mode {
+    overflow-y: scroll;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .certification-ysws .review-detail-right.is-popup-mode::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 if (sessionStorage.getItem("_ext_better-goi_pre") === "1") {
@@ -522,6 +711,13 @@ Exterstellar.register({
       label: "Preload CSS before paint",
       type: "checkbox",
       default: true
+    },
+    {
+      key: "swCookie",
+      label: "SW Cookie (optional)",
+      type: "text",
+      placeholder: "...",
+      default: ""
     },
     {
       key: "search",
@@ -574,6 +770,7 @@ Exterstellar.register({
       }
       if (isReviewDetailPage()) {
         handleReviewDetailPage(cfg);
+        handleDevlogMarkdown(cfg);
       }
     };
 

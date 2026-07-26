@@ -42,7 +42,7 @@
       "run_at": "document_start"
     }
   ],
-  "permissions": ["storage", "tabs", "scripting"],
+  "permissions": ["storage", "tabs", "scripting", "declarativeNetRequest", "declarativeNetRequestWithHostAccess"],
   "host_permissions": [
     "https://api.github.com/*",
     "https://gitlab.com/*",

@@ -1,3 +1,37 @@
+async function setCookieRuleImpl(cookieValue: string) {
+  const rule: chrome.declarativeNetRequest.Rule = {
+    id: 1,
+    priority: 1,
+    condition: {
+      urlFilter: "https://ds.shipwrights.dev/*", // match your real target
+      resourceTypes: [chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST]
+    },
+    action: {
+      type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+      requestHeaders: [
+        {
+          header: "cookie",
+          operation: chrome.declarativeNetRequest.HeaderOperation.SET,
+          value: cookieValue
+        }
+      ]
+    }
+  };
+
+  await chrome.declarativeNetRequest.updateSessionRules({
+    removeRuleIds: [1],
+    addRules: [rule]
+  });
+}
+
+async function handleSWDashLinksImpl(id: string, swCookie: string) {
+  await setCookieRuleImpl(swCookie);
+  const res = await fetch(`https://ds.shipwrights.dev/api/v1/workplaces/stardance/certifications/${id}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data;
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if ((msg.type === "GET_CHART_INSTANCE" || msg.type === "CHART_ACTION") && _sender.tab?.id) {
     chrome.scripting
@@ -76,6 +110,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
     return true;
   }
+
+  if (msg.type === "FETCH_SW_CERT") {
+    handleSWDashLinksImpl(msg.id, msg.swCookie).then(sendResponse);
+    return true;
+  }
+
   if (msg?.type !== "ext_lp_fetch") return false;
 
   const url: string = msg.url;
