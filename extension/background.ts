@@ -1,4 +1,3 @@
-// background.ts (service worker) — DNR only works here
 async function setCookieRuleImpl(cookieValue: string) {
   const rule: chrome.declarativeNetRequest.Rule = {
     id: 1,
@@ -30,7 +29,7 @@ async function handleSWDashLinksImpl(id: string, swCookie: string) {
   const res = await fetch(`https://ds.shipwrights.dev/api/v1/workplaces/stardance/certifications/${id}`);
   if (!res.ok) return null;
   const data = await res.json();
-  return data.externalId
+  return data;
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -116,6 +115,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     handleSWDashLinksImpl(msg.id, msg.swCookie).then(sendResponse);
     return true;
   }
+
   if (msg?.type !== "ext_lp_fetch") return false;
 
   const url: string = msg.url;

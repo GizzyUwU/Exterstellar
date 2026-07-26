@@ -21,6 +21,7 @@ interface RowSearchData {
   projectId: string;
   userName: string;
   userId: string;
+  lengthHours: string;
 }
 
 function getRowSearchData(row: HTMLTableRowElement): RowSearchData {
@@ -38,6 +39,7 @@ function getRowSearchData(row: HTMLTableRowElement): RowSearchData {
     projectId = match?.[1] ?? "";
   }
 
+  const lengthHours = cells[4]?.textContent?.trim().toLowerCase() ?? "";
   const userCell = cells[3];
   const userLink = userCell?.querySelector("a") as HTMLAnchorElement | null;
   const userName = userLink?.textContent?.trim().toLowerCase() ?? "";
@@ -47,8 +49,26 @@ function getRowSearchData(row: HTMLTableRowElement): RowSearchData {
     userId = match?.[1] ?? "";
   }
 
-  return { reviewId, projectName, projectId, userName, userId };
+  return { reviewId, projectName, projectId, userName, userId, lengthHours };
 }
+
+function parseDevTimeToHours(raw: string): number {
+  const trimmed = raw.trim();
+
+  const hMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*h/i);
+  const mMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*m/i);
+
+  if (hMatch || mMatch) {
+    const hours = hMatch ? parseFloat(hMatch[1] ?? "0") : 0;
+    const minutes = mMatch ? parseFloat(mMatch[1] ?? "0") : 0;
+    return hours + minutes / 60;
+  }
+
+  const plain = parseFloat(trimmed);
+  return Number.isNaN(plain) ? 0 : plain;
+}
+
+const DEV_TIME_LEEWAY_HOURS = 0.25;
 
 async function handleSWDashLinks(id: string, cfg: Record<string, string | number | boolean>) {
   return await chrome.runtime.sendMessage({
@@ -61,12 +81,15 @@ async function handleSWDashLinks(id: string, cfg: Record<string, string | number
 async function filterTable(query: string, cfg: Record<string, string | number | boolean>) {
   let q = query.trim().toLowerCase();
   let isSWLink = false;
+  let swProjectName = "";
+  let swDevTimeHours = 0;
 
   const swMatch = query.trim().match(/ds\.shipwrights\.dev\/stardance\/certifications\/([0-9a-f-]{36})/i);
   if (swMatch && cfg.swCookie) {
-    const projectId = await handleSWDashLinks(swMatch[1] ?? "", cfg);
-    if (projectId) {
-      q = String(projectId).toLowerCase();
+    const project = await handleSWDashLinks(swMatch[1] ?? "", cfg);
+    if (project?.projectName) {
+      swProjectName = String(project.projectName).trim().toLowerCase();
+      swDevTimeHours = parseDevTimeToHours(String(project.devTime ?? ""));
       isSWLink = true;
     }
   }
@@ -76,21 +99,26 @@ async function filterTable(query: string, cfg: Record<string, string | number | 
   const rows = Array.from(
     table.querySelectorAll("tbody tr"),
   ) as HTMLTableRowElement[];
+
   for (const row of rows) {
-    if (!q) {
+    if (!q && !isSWLink) {
       row.style.display = "";
       continue;
     }
-    const { reviewId, projectName, projectId, userName, userId } =
+    const { reviewId, projectName, projectId, userName, userId, lengthHours } =
       getRowSearchData(row);
+
+    console.log(isSWLink);
     const matches = isSWLink
-      ? projectId.includes(q)
+      ? projectName.toLowerCase() === swProjectName &&
+        Math.abs(parseDevTimeToHours(lengthHours ?? "") - swDevTimeHours) <= DEV_TIME_LEEWAY_HOURS
       : reviewId.includes(q) ||
         projectName.includes(q) ||
         projectId.includes(q) ||
         userName.includes(q) ||
         userId.includes(q) ||
         reviewId.replace("#", "").includes(q.replace("#", ""));
+
     row.style.display = matches ? "" : "none";
   }
 }
@@ -145,10 +173,10 @@ function escapeHtml(str: string): string {
 }
  
 function formatInline(escaped: string): string {
-  let out = escaped.replace(
-    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
-  );
+  let out = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, text, href) => {
+    const safeHref = escapeHtml(String(href));
+    return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  });
   out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   out = out.replace(/__([^_]+)__/g, "<strong>$1</strong>");
   out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
@@ -220,7 +248,7 @@ function renderDevlogMarkdown(raw: string): string {
 function formatDevlogDesc(desc: HTMLElement) {
   if (desc.getAttribute(DEVLOG_MD_PROCESSED_ATTR) === "1") return;
  
-  const raw = desc.textContent ?? "";
+  const raw = desc.innerHTML ?? "";
   if (!raw.trim()) return;
  
   const rendered = renderDevlogMarkdown(raw);
