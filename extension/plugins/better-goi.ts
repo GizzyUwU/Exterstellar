@@ -528,9 +528,9 @@ function formatDate(date: string) {
 }
 
 async function injectAllProjectsCommits(div: Element) {
-  if (div.querySelector("#allProjectCommits")) return;
+  if (div.hasAttribute("data-exterstellar-all-project-commits")) return;
   const sectionDetails = document.createElement("section");
-  sectionDetails.id = "allProjectCommits";
+  div.setAttribute("data-exterstellar-all-project-commits", "1");
   sectionDetails.classList.add("review-card", "details-card");
   const header = document.createElement("h3");
   header.textContent = "Git Activity";
@@ -600,7 +600,6 @@ function handleReviewDetailPage(
 }
 
 // Devlog review chart mods bleh
-
 function getMyUsername(): string | null {
   const handleEl = document.querySelector<HTMLAnchorElement>(
     ".sidebar__user-meta-handle",
@@ -759,17 +758,11 @@ function handleChartControls(cfg: Record<string, string | number | boolean>) {
   tryInject();
 }
 
-// Open all commits that are in window of devlog
-const DEVLOG_REVIEW_PANEL_SELECTOR = ".devlog-review-panel";
-const OPEN_ALL_COMMITS_MARKER_ATTR = "data-exterstellar-open-all-commits";
-
 function getCommitUrlsFromItem(item: Element): string[] {
   const svg = item.querySelector("svg.commit-graph");
   if (!svg) return [];
 
-  const anchors = Array.from(
-    svg.querySelectorAll("a[href]"),
-  ) as SVGAElement[];
+  const anchors = Array.from(svg.querySelectorAll("a[href]")) as SVGAElement[];
 
   return anchors
     .map((a) => a.getAttribute("href"))
@@ -785,7 +778,7 @@ async function openCommitUrlsInTabs(urls: string[]) {
 }
 
 function injectOpenAllCommitsButton(item: Element) {
-  if (item.querySelector(`[${OPEN_ALL_COMMITS_MARKER_ATTR}]`)) return;
+  if (item.hasAttribute("data-exterstellar-open-all-commits")) return;
 
   const panel = item.querySelector(".devlog-review-panel");
   const panelTitle = panel?.querySelector(".panel-title");
@@ -793,13 +786,21 @@ function injectOpenAllCommitsButton(item: Element) {
 
   const button = document.createElement("button");
   button.type = "button";
-  button.classList.add("status-btn", "exterstellar-better-goi-commits-window-btn");
-  button.setAttribute(OPEN_ALL_COMMITS_MARKER_ATTR, "1");
+  button.classList.add(
+    "status-btn",
+    "exterstellar-better-goi-commits-window-btn",
+  );
+  item.setAttribute("data-exterstellar-open-all-commits", "1");
   button.textContent = "Open all commits in window";
+  const urls = getCommitUrlsFromItem(item);
+  if (urls.length === 0) {
+    button.disabled = true;
+  }
 
   button.addEventListener("click", async (e) => {
     e.preventDefault();
     const urls = getCommitUrlsFromItem(item);
+
     if (!urls.length) {
       console.warn("[Better GOI] No commits found in this panel");
       return;
@@ -810,13 +811,53 @@ function injectOpenAllCommitsButton(item: Element) {
   panelTitle.parentElement.insertBefore(button, panelTitle);
 }
 
-function handleDevlogReviewPanels(cfg: Record<string, string | number | boolean>) {
+function handleDevlogReviewPanels(
+  cfg: Record<string, string | number | boolean>,
+) {
   if (cfg.commitsButton === false || cfg.commitsButton === "false") return;
 
   const items = document.querySelectorAll(DEVLOG_ITEM_SELECTOR);
   for (const item of Array.from(items)) {
     injectOpenAllCommitsButton(item);
   }
+}
+
+function handleRandomProject(cfg: Record<string, string | number | boolean>) {
+  if (cfg.randomProjectBTN === false || cfg.randomProjectBTN === "false")
+    return;
+  if (document.querySelector('[data-exterstellar-random-project-btn]')) return;
+
+  const filtersBTN = document.querySelector("a.ysws-queue__reset-filters");
+  console.log(filtersBTN, "a")
+  if (!filtersBTN) return;
+
+  const button = document.createElement("a");
+  button.classList.add("slim", "exterstellar-random-project-btn");
+  button.setAttribute("data-exterstellar-random-project-btn", "1");
+  button.textContent = "Open a random project";
+
+  button.addEventListener("click", () => {
+    const table = document.querySelector(".ysws-queue__table-container table");
+    if (!table) return;
+
+    const rows = Array.from(
+      table.querySelectorAll("tbody tr"),
+    ) as HTMLTableRowElement[];
+
+    if (rows.length === 0) return;
+
+    const links = rows
+      .map((row) => row.querySelector<HTMLAnchorElement>("a.ysws-queue__view-btn"))
+      .filter((link): link is HTMLAnchorElement => link !== null);
+
+    if (links.length === 0) return;
+
+    const choice = links[Math.floor(Math.random() * links.length)];
+
+    window.open(choice!.href, "_blank");
+  });
+
+  filtersBTN.after(button);
 }
 
 const GOI_CSS = `
@@ -884,7 +925,6 @@ const GOI_CSS = `
     background: rgba(0, 0, 0, 0.3);
   }
 
-  /* Track */
   body::-webkit-scrollbar-track {
     width: 12px;
     background:  rgba(5, 4, 24, 0.02);
@@ -893,7 +933,6 @@ const GOI_CSS = `
   body::-webkit-scrollbar-thumb {
     width: 12px;
     background: rgba(0, 0, 0, 0.3);
-
   }
 
   body::-webkit-scrollbar-thumb:hover {
@@ -913,6 +952,42 @@ const GOI_CSS = `
   .exterstellar-better-goi-commits-window-btn {
     width: 100%;
     margin-bottom: 10px;
+    background: var(--color-space-surface-strong);
+    color: var(--color-space-text-muted) !important;
+  }
+
+  .exterstellar-better-goi-commits-window-btn:hover:not(:disabled) {
+    background: var(--color-brand-mint);
+    color: var(--color-set-1-bg) !important;
+  }
+
+  .exterstellar-better-goi-commits-window-btn:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+  }
+
+  .exterstellar-random-project-btn {
+      display: inline-flex;
+      align-items: center;
+      align-self: flex-end;
+      padding: .375rem .75rem;
+      min-height: 2rem;
+      padding-inline: var(--space-s);
+      background: var(--color-set-1-bg);
+      border: 2px solid var(--color-set-1-fg-secondary);
+      border-radius: var(--profile-radius);
+      color: var(--color-space-text) !important;
+      font-size: var(--font-size-s);
+      font-weight: 700;
+      text-decoration: none;
+  }
+
+  .exterstellar-random-project-btn:hover {
+      background: hsla(0, 0%, 100%, .06);
+      border-color: var(--color-brand-highlight);
+      color: var(--color-brand-highlight);
+      text-decoration: none;
+      cursor: pointer;
   }
 `;
 
@@ -996,6 +1071,7 @@ Exterstellar.register({
       if (isQueueListPage()) {
         handleQueuePage(cfg);
         handleChartControls(cfg);
+        handleRandomProject(cfg);
       }
       if (isReviewDetailPage()) {
         handleReviewDetailPage(cfg);
