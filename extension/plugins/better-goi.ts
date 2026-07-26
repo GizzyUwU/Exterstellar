@@ -853,7 +853,8 @@ function handleRandomProject(cfg: Record<string, string | number | boolean>) {
 
     const choice = links[Math.floor(Math.random() * links.length)];
 
-    window.open(choice!.href, "_blank");
+    const w = window.open(choice!.href, "_blank", "noopener,noreferrer");
+    if (w) w.opener = null;
   });
 
   filtersBTN.after(button);
