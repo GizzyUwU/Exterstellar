@@ -37,8 +37,9 @@ function getRowSearchData(row: HTMLTableRowElement): RowSearchData {
   const lengthHours = cells[4]?.textContent?.trim().toLowerCase() ?? "";
   const userCell = cells[3];
   const age =
-    (cells[6]?.querySelector("span") as HTMLSpanElement | null)
-      ?.textContent?.trim() ?? "";
+    (
+      cells[6]?.querySelector("span") as HTMLSpanElement | null
+    )?.textContent?.trim() ?? "";
   const userLink = userCell?.querySelector("a") as HTMLAnchorElement | null;
   const userName = userLink?.textContent?.trim().toLowerCase() ?? "";
   let userId = "";
@@ -167,7 +168,9 @@ function scoreRowAgainstSWProject(
   const projectSim = stringSimilarity(projectName, sw.projectName);
   const usernameSim = stringSimilarity(userName, sw.username);
 
-  const devTimeDiff = Math.abs(parseDevTimeToHours(lengthHours) - sw.devTimeHours);
+  const devTimeDiff = Math.abs(
+    parseDevTimeToHours(lengthHours) - sw.devTimeHours,
+  );
   const devTimeCloseness = closenessFromDiff(devTimeDiff, 0.5);
 
   const rowAgeHours = parseRelativeAgeToHours(age);
@@ -592,7 +595,7 @@ function handleReviewDetailPage(
   cfg: Record<string, string | number | boolean>,
 ) {
   if (cfg.git === false || cfg.git === "false") return;
-  const sidebar = document.querySelector('div.review-detail-right');
+  const sidebar = document.querySelector("div.review-detail-right");
   if (sidebar) injectAllProjectsCommits(sidebar);
 }
 
@@ -736,9 +739,13 @@ function handleChartControls(cfg: Record<string, string | number | boolean>) {
   if (cfg.graphs == false || cfg.graphs === "false") return;
   let attempts = 0;
   const tryInject = () => {
-    const chartWrapper = document.querySelector(`.ysws-dashboard__chart[data-controller="certification--ysws--reviewer-chart"]`);
-    const canvas = chartWrapper?.querySelector<HTMLCanvasElement>('[data-certification--ysws--reviewer-chart-target="canvas"]');
-    const panel = chartWrapper?.closest('.ysws-dashboard__panel--chart');
+    const chartWrapper = document.querySelector(
+      `.ysws-dashboard__chart[data-controller="certification--ysws--reviewer-chart"]`,
+    );
+    const canvas = chartWrapper?.querySelector<HTMLCanvasElement>(
+      '[data-certification--ysws--reviewer-chart-target="canvas"]',
+    );
+    const panel = chartWrapper?.closest(".ysws-dashboard__panel--chart");
 
     if (canvas && panel) {
       injectChartControls(panel, canvas);
@@ -750,6 +757,66 @@ function handleChartControls(cfg: Record<string, string | number | boolean>) {
   };
 
   tryInject();
+}
+
+// Open all commits that are in window of devlog
+const DEVLOG_REVIEW_PANEL_SELECTOR = ".devlog-review-panel";
+const OPEN_ALL_COMMITS_MARKER_ATTR = "data-exterstellar-open-all-commits";
+
+function getCommitUrlsFromItem(item: Element): string[] {
+  const svg = item.querySelector("svg.commit-graph");
+  if (!svg) return [];
+
+  const anchors = Array.from(
+    svg.querySelectorAll("a[href]"),
+  ) as SVGAElement[];
+
+  return anchors
+    .map((a) => a.getAttribute("href"))
+    .filter((href): href is string => !!href);
+}
+
+async function openCommitUrlsInTabs(urls: string[]) {
+  if (!urls.length) return;
+  return chrome.runtime.sendMessage({
+    type: "OPEN_TABS",
+    urls,
+  });
+}
+
+function injectOpenAllCommitsButton(item: Element) {
+  if (item.querySelector(`[${OPEN_ALL_COMMITS_MARKER_ATTR}]`)) return;
+
+  const panel = item.querySelector(".devlog-review-panel");
+  const panelTitle = panel?.querySelector(".panel-title");
+  if (!panelTitle?.parentElement) return;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.classList.add("status-btn", "exterstellar-better-goi-commits-window-btn");
+  button.setAttribute(OPEN_ALL_COMMITS_MARKER_ATTR, "1");
+  button.textContent = "Open all commits in window";
+
+  button.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const urls = getCommitUrlsFromItem(item);
+    if (!urls.length) {
+      console.warn("[Better GOI] No commits found in this panel");
+      return;
+    }
+    await openCommitUrlsInTabs(urls);
+  });
+
+  panelTitle.parentElement.insertBefore(button, panelTitle);
+}
+
+function handleDevlogReviewPanels(cfg: Record<string, string | number | boolean>) {
+  if (cfg.commitsButton === false || cfg.commitsButton === "false") return;
+
+  const items = document.querySelectorAll(DEVLOG_ITEM_SELECTOR);
+  for (const item of Array.from(items)) {
+    injectOpenAllCommitsButton(item);
+  }
 }
 
 const GOI_CSS = `
@@ -842,6 +909,11 @@ const GOI_CSS = `
   .certification-ysws .review-detail-right.is-popup-mode::-webkit-scrollbar {
     display: none;
   }
+
+  .exterstellar-better-goi-commits-window-btn {
+    width: 100%;
+    margin-bottom: 10px;
+  }
 `;
 
 if (sessionStorage.getItem("_ext_better-goi_pre") === "1") {
@@ -888,6 +960,12 @@ Exterstellar.register({
       type: "checkbox",
       default: true,
     },
+    {
+      key: "commitsButton",
+      label: "Show 'Open all commits' button on devlog review panels",
+      type: "checkbox",
+      default: true,
+    },
   ],
   start() {
     const cfg = Exterstellar.getConfig("better-goi");
@@ -922,6 +1000,7 @@ Exterstellar.register({
       if (isReviewDetailPage()) {
         handleReviewDetailPage(cfg);
         handleDevlogMarkdown(cfg);
+        handleDevlogReviewPanels(cfg);
       }
     };
 
