@@ -117,9 +117,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   if (msg.type === "OPEN_TABS") {
-    for (const url of msg.urls as string[]) {
-      chrome.tabs.create({ url, active: false });
+    const urls = Array.isArray(msg.urls) ? (msg.urls as unknown[]) : [];
+    for (const url of urls) {
+      if (typeof url === "string" && url) {
+        chrome.tabs.create({ url, active: false });
+      }
     }
+    sendResponse({ ok: true });
     return true;
   }
 

@@ -828,7 +828,6 @@ function handleRandomProject(cfg: Record<string, string | number | boolean>) {
   if (document.querySelector('[data-exterstellar-random-project-btn]')) return;
 
   const filtersBTN = document.querySelector("a.ysws-queue__reset-filters");
-  console.log(filtersBTN, "a")
   if (!filtersBTN) return;
 
   const button = document.createElement("a");
@@ -1038,6 +1037,12 @@ Exterstellar.register({
     {
       key: "commitsButton",
       label: "Show 'Open all commits' button on devlog review panels",
+      type: "checkbox",
+      default: true,
+    },
+    {
+      key: "randomProjectBTN",
+      label: "Show 'Open a random project' button on the queue page",
       type: "checkbox",
       default: true,
     },
