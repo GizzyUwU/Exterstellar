@@ -4,7 +4,7 @@ async function setCookieRuleImpl(cookieValue: string) {
     priority: 1,
     condition: {
       urlFilter: "https://ds.shipwrights.dev/*", // match your real target
-      resourceTypes: [chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST]
+      resourceTypes: [chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST],
     },
     action: {
       type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
@@ -12,28 +12,57 @@ async function setCookieRuleImpl(cookieValue: string) {
         {
           header: "cookie",
           operation: chrome.declarativeNetRequest.HeaderOperation.SET,
-          value: cookieValue
-        }
-      ]
-    }
+          value: cookieValue,
+        },
+      ],
+    },
   };
 
   await chrome.declarativeNetRequest.updateSessionRules({
     removeRuleIds: [1],
-    addRules: [rule]
+    addRules: [rule],
   });
 }
 
 async function handleSWDashLinksImpl(id: string, swCookie: string) {
   await setCookieRuleImpl(swCookie);
-  const res = await fetch(`https://ds.shipwrights.dev/api/v1/workplaces/stardance/certifications/${id}`);
+  const res = await fetch(
+    `https://ds.shipwrights.dev/api/v1/workplaces/stardance/certifications/${id}`,
+  );
   if (!res.ok) return null;
   const data = await res.json();
   return data;
 }
 
+async function resizeImage(url: string, width: number, height: number) {
+  try {
+    const response = await fetch(url, { mode: 'cors' });
+    if (!response.ok) throw new Error(`http error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ${response.status}`);
+    const blob = await response.blob();
+    const bitmap = await createImageBitmap(blob);
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext("2d");
+
+    ctx!.drawImage(bitmap, 0, 0, width, height);
+    
+    const resizedBlob = await canvas.convertToBlob({ type: "image/png" });
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(resizedBlob);
+    });
+  } catch (error) {
+    console.error("resizing image failed i crave for help at scripts/background.js ", error);
+    throw error;
+  }
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if ((msg.type === "GET_CHART_INSTANCE" || msg.type === "CHART_ACTION") && _sender.tab?.id) {
+  if (
+    (msg.type === "GET_CHART_INSTANCE" || msg.type === "CHART_ACTION") &&
+    _sender.tab?.id
+  ) {
     chrome.scripting
       .executeScript({
         target: {
@@ -124,6 +153,57 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       }
     }
     sendResponse({ ok: true });
+    return true;
+  }
+
+  if (msg.type === "GET_SLACK_EMOJIS") {
+    const cacheKey = "slack_emoji_cache";
+    chrome.storage.local.get([cacheKey]).then(async (result) => {
+      const now = Date.now();
+      const cached = result[cacheKey];
+      if (cached && now - cached.timestamp < 86400000) {
+        // one day
+        return sendResponse({ ok: true, emoji: cached.data });
+      }
+
+      try {
+        const response = await fetch("https://cachet.dunkirk.sh/emojis");
+        const data = await response.json();
+        const emojiMap: Record<string, string> = {};
+        data.forEach(
+          (emoji: {
+            type: string;
+            id: string;
+            name: string;
+            alias: string | null;
+            imageUrl: string;
+            expiration: string;
+          }) => {
+            if (emoji.imageUrl) emojiMap[emoji.name] = emoji.imageUrl;
+          },
+        );
+        await chrome.storage.local.set({
+          [cacheKey]: { data: emojiMap, timestamp: now },
+        });
+
+        sendResponse({ ok: true, emoji: emojiMap });
+      } catch (error) {
+        if (cached) {
+          sendResponse({ ok: true, emoji: cached.data, stale: true });
+        } else {
+          sendResponse({ ok: false, error: (error as any).message });
+        }
+      }
+    });
+    return true;
+  } else if (msg.type === "RESIZE_EMOJI") {
+    resizeImage(msg.url, 24, 24)
+      .then((base64) => {
+        sendResponse({ ok: true, dataUri: base64 });
+      })
+      .catch((error) => {
+        sendResponse({ ok: false, error: error.message });
+      });
     return true;
   }
 

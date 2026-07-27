@@ -305,10 +305,6 @@ function handleQueuePage(cfg: Record<string, string | number | boolean>) {
 }
 
 // Devlog MD
-const DEVLOG_ITEM_SELECTOR = ".devlog-item";
-const DEVLOG_DESC_SELECTOR = ".devlog-desc";
-const DEVLOG_MD_PROCESSED_ATTR = "data-goi-md-rendered";
-
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
@@ -318,8 +314,47 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+let slackEmojiMap: Record<any, any> = {};
+async function fetchSlackEmojis() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: "GET_SLACK_EMOJIS" }, (data) => {
+      if (data && data.ok) {
+        slackEmojiMap = data.emoji;
+        resolve(true);
+      } else {
+        resolve(false);
+      }
+    });
+  });
+}
+
+let emojiSupportEnabled = true;
+let emojiMapLoaded = false;
+let emojiMapLoadingPromise: Promise<void> | null = null;
+
+async function ensureSlackEmojisLoaded(
+  cfg: Record<string, string | number | boolean>,
+): Promise<void> {
+  if (cfg.emojiSupport === false || cfg.emojiSupport === "false") return;
+  if (emojiMapLoadingPromise) return emojiMapLoadingPromise;
+  emojiMapLoadingPromise = fetchSlackEmojis().then(() => {
+    emojiMapLoaded = true;
+  });
+  return emojiMapLoadingPromise;
+}
+
+function formatEmoji(escaped: string): string {
+  return escaped.replace(/:([a-z0-9_+\-]+):/gi, (match, name) => {
+    const url = slackEmojiMap[name.toLowerCase()];
+    if (!url) return match;
+    const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=20&h=20&fit=contain`;
+    return `<img src="${proxyUrl}" alt=":${name}:" title=":${name}:" class="exterstellar-better-goi-emoji">`;
+  });
+}
+
 function formatInline(escaped: string): string {
-  let out = escaped.replace(
+  let out = emojiSupportEnabled ? formatEmoji(escaped) : escaped;
+  out = out.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
     (_m, text, href) => {
       const safeHref = escapeHtml(String(href));
@@ -395,7 +430,7 @@ function renderDevlogMarkdown(raw: string): string {
 }
 
 function formatDevlogDesc(desc: HTMLElement) {
-  if (desc.getAttribute(DEVLOG_MD_PROCESSED_ATTR) === "1") return;
+  if (desc.getAttribute("data-goi-md-rendered") === "1") return;
 
   const raw = desc.innerHTML ?? "";
   if (!raw.trim()) return;
@@ -404,18 +439,24 @@ function formatDevlogDesc(desc: HTMLElement) {
   const replacement = document.createElement("div");
   replacement.className = desc.className;
   replacement.classList.add("exterstellar-better-goi-devlog-md");
-  replacement.setAttribute(DEVLOG_MD_PROCESSED_ATTR, "1");
+  replacement.setAttribute("data-goi-md-rendered", "1");
   replacement.innerHTML = rendered;
 
   desc.replaceWith(replacement);
 }
 
-function handleDevlogMarkdown(cfg: Record<string, string | number | boolean>) {
+async function handleDevlogMarkdown(
+  cfg: Record<string, string | number | boolean>,
+) {
   if (cfg.markdown === false || cfg.markdown === "false") return;
 
-  const items = document.querySelectorAll(DEVLOG_ITEM_SELECTOR);
+  emojiSupportEnabled =
+    cfg.emojiSupport !== false && cfg.emojiSupport !== "false";
+  if (emojiSupportEnabled) await ensureSlackEmojisLoaded(cfg);
+
+  const items = document.querySelectorAll(".devlog-item");
   for (const item of Array.from(items)) {
-    const desc = item.querySelector<HTMLElement>(DEVLOG_DESC_SELECTOR);
+    const desc = item.querySelector<HTMLElement>(".devlog-desc");
     if (desc) formatDevlogDesc(desc);
   }
 }
@@ -823,7 +864,7 @@ function handleDevlogReviewPanels(
 ) {
   if (cfg.commitsButton === false || cfg.commitsButton === "false") return;
 
-  const items = document.querySelectorAll(DEVLOG_ITEM_SELECTOR);
+  const items = document.querySelectorAll(".devlog-item");
   for (const item of Array.from(items)) {
     injectOpenAllCommitsButton(item);
   }
@@ -1023,6 +1064,24 @@ const GOI_CSS = `
       font-size: 0.75em;
       opacity: 0.8;
     }
+
+    .exterstellar-better-goi-approve-all-link {
+      color: inherit;
+      text-decoration: underline;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .exterstellar-better-goi-approve-all-link:hover {
+      opacity: 0.85;
+    }
+
+    .exterstellar-better-goi-emoji {
+      width: 20px;
+      height: 20px;
+      vertical-align: middle;
+      display: inline-block;
+    }
 `;
 
 // User weekly devlogs
@@ -1199,7 +1258,9 @@ async function injectWeeklyLeaderboardColumn(
   const now = new Date();
   const labels: string[] = chart.data.labels ?? [];
   const cutoffIndex = Math.max(0, labels.length - 7);
-  const priorRanks = showRankChange ? computeRanksAtCutoff(chart, cutoffIndex) : null;
+  const priorRanks = showRankChange
+    ? computeRanksAtCutoff(chart, cutoffIndex)
+    : null;
   const daysOnTop = showDaysOnTop ? computeDaysOnTop(chart) : null;
 
   const rows = Array.from(
@@ -1230,7 +1291,9 @@ async function injectWeeklyLeaderboardColumn(
     if (showDaysOnTop && daysOnTop) {
       const daysOnTopTd = document.createElement("td");
       daysOnTopTd.classList.add("ysws-dashboard__col-num");
-      daysOnTopTd.textContent = String(username ? daysOnTop.get(username) ?? 0 : 0);
+      daysOnTopTd.textContent = String(
+        username ? (daysOnTop.get(username) ?? 0) : 0,
+      );
       row.appendChild(daysOnTopTd);
     }
   }
@@ -1403,7 +1466,7 @@ function restoreLeaderboardSort(
       (th.textContent ?? "").trim() === saved.column,
   );
   if (index === -1) return;
-  console.log("aaa")
+  console.log("aaa");
 
   const th = ths[index]!;
   clearSortIndicators(headRow);
@@ -1436,7 +1499,6 @@ function observeLeaderboardHeader(
   observer.observe(headRow, { childList: true });
 }
 
-
 function initLeaderboardSorting(table: HTMLTableElement) {
   const headRow = table.querySelector("thead tr") as HTMLTableRowElement | null;
   if (!headRow) return;
@@ -1454,9 +1516,9 @@ function finalizeLeaderboardSortRestore(
   const table = document.querySelector<HTMLTableElement>(
     ".ysws-dashboard__table",
   );
-  const headRow = table?.querySelector("thead tr") as
-    | HTMLTableRowElement
-    | null;
+  const headRow = table?.querySelector(
+    "thead tr",
+  ) as HTMLTableRowElement | null;
   if (table && headRow) restoreLeaderboardSort(table, headRow);
 }
 
@@ -1470,6 +1532,98 @@ function handleLeaderboardSorting(
     ".ysws-dashboard__table",
   );
   if (table) initLeaderboardSorting(table);
+}
+
+// Approve all devlogs missing a verdict hyperlink
+function getMissingVerdictItems(): Element[] {
+  const items = Array.from(document.querySelectorAll(".devlog-item"));
+  return items.filter((item) => {
+    const status = item.getAttribute(
+      "data-certification--ysws--devlog-review-status-value",
+    );
+    if (status === "rejected" || status === "approved") return false;
+
+    const isLocked = item.querySelector(".devlog-header-row .status-frozen");
+    if (isLocked) return false;
+
+    return true;
+  });
+}
+
+function approveAllMissingVerdict() {
+  const items = getMissingVerdictItems();
+  for (const item of items) {
+    const approveBtn = item.querySelector<HTMLButtonElement>(
+      '[data-certification--ysws--devlog-review-target="approveButton"]',
+    );
+    approveBtn?.click();
+  }
+
+  const closeBtn = document.querySelector<HTMLButtonElement>(".alert__close");
+  closeBtn?.click();
+}
+
+function injectApproveAllLink(alertContent: HTMLElement) {
+  if (document.getElementById("exterstellar-better-goi-approve-all-link"))
+    return;
+
+  const link = document.createElement("a");
+  link.id = "exterstellar-better-goi-approve-all-link";
+  link.href = "#";
+  link.textContent = "Approve all devlogs missing a verdict?";
+  link.classList.add("exterstellar-better-goi-approve-all-link");
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    approveAllMissingVerdict();
+  });
+
+  alertContent.appendChild(document.createTextNode(" "));
+  alertContent.appendChild(link);
+}
+
+function checkFlashForMissingVerdict() {
+  if (
+    !/^\/admin\/certification\/review\/[^/]+\/?$/.test(window.location.pathname)
+  )
+    return;
+
+  const flashContainer = document.querySelector(".flash-container");
+  const alertContent =
+    flashContainer?.querySelector<HTMLElement>(".alert__content");
+  if (!alertContent) return;
+
+  const text = alertContent.textContent ?? "";
+  if (!text.includes("Review all devlogs before completing")) return;
+  if (alertContent.hasAttribute("data-exterstellar-approve-all-injected"))
+    return;
+
+  alertContent.setAttribute("data-exterstellar-approve-all-injected", "1");
+  injectApproveAllLink(alertContent);
+}
+
+let approveAllObserverAttached = false;
+
+function handleApproveAllMissingVerdict(
+  cfg: Record<string, string | number | boolean>,
+) {
+  if (
+    cfg.approveAllMissingVerdict === false ||
+    cfg.approveAllMissingVerdict === "false"
+  )
+    return;
+
+  checkFlashForMissingVerdict();
+
+  if (approveAllObserverAttached) return;
+  approveAllObserverAttached = true;
+
+  const observer = new MutationObserver(() => {
+    checkFlashForMissingVerdict();
+  });
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
 }
 
 if (sessionStorage.getItem("_ext_better-goi_pre") === "1") {
@@ -1552,6 +1706,19 @@ Exterstellar.register({
       type: "checkbox",
       default: true,
     },
+    {
+      key: "approveAllMissingVerdict",
+      label:
+        "Show 'Approve all missing verdict' link on incomplete-review error",
+      type: "checkbox",
+      default: true,
+    },
+    {
+      key: "emojiSupport",
+      label: "Render Slack emoji shortcodes in devlog markdown",
+      type: "checkbox",
+      default: true,
+    },
   ],
   start() {
     const cfg = Exterstellar.getConfig("better-goi");
@@ -1593,6 +1760,7 @@ Exterstellar.register({
         handleReviewDetailPage(cfg);
         handleDevlogMarkdown(cfg);
         handleDevlogReviewPanels(cfg);
+        handleApproveAllMissingVerdict(cfg);
       }
     };
 
