@@ -1082,6 +1082,29 @@ const GOI_CSS = `
       vertical-align: middle;
       display: inline-block;
     }
+
+    .ysws-dashboard {
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(5, 1fr);
+    }
+
+    .ysws-dashboard__panel--leaderboard {
+      grid-row: span 5 / span 5;
+    }
+
+    .ysws-dashboard__panel--chart {
+      grid-row: span 4 / span 4;
+    }
+
+    #exterstellar-better-goi-personal-standing {
+      display: flex;
+      flex-direction: column;
+      flex-basis: 50%;
+      justify-content: flex-end;
+      gap: 8px;
+      grid-column-start: 2;
+      grid-row-start: 5;
+    }
 `;
 
 // User weekly devlogs
@@ -1719,6 +1742,18 @@ Exterstellar.register({
       type: "checkbox",
       default: true,
     },
+    {
+      key: "sidebarToggleHotkey",
+      label: "Press Tab to toggle the project details sidebar",
+      type: "checkbox",
+      default: true,
+    },
+    {
+      key: "personalStanding",
+      label: "Show your rank gap and percentile next to the goal",
+      type: "checkbox",
+      default: true,
+    },
   ],
   start() {
     const cfg = Exterstellar.getConfig("better-goi");
@@ -1752,15 +1787,17 @@ Exterstellar.register({
         handleRandomProject(cfg);
         handleWeeklyStat(cfg);
         handleLeaderboardSorting(cfg);
-        handleWeeklyLeaderboardColumn(cfg).then(() =>
-          finalizeLeaderboardSortRestore(cfg),
-        );
+        handleWeeklyLeaderboardColumn(cfg).then(() => {
+          finalizeLeaderboardSortRestore(cfg);
+          handlePersonalStanding(cfg);
+        });
       }
       if (isReviewDetailPage()) {
         handleReviewDetailPage(cfg);
         handleDevlogMarkdown(cfg);
         handleDevlogReviewPanels(cfg);
         handleApproveAllMissingVerdict(cfg);
+        handleSidebarToggleHotkey(cfg);
       }
     };
 
@@ -1773,10 +1810,10 @@ Exterstellar.register({
       style?.remove();
       document.removeEventListener("turbo:load", onTurboUpdate);
       document.removeEventListener("turbo:frame-load", onTurboUpdate);
+      document.removeEventListener("keydown", handleSidebarHotkeyPress);
+      sidebarHotkeyAttached = false;
       document.getElementById("exterstellar-better-goi-search")?.remove();
-      document
-        .getElementById("exterstellar-better-goi-chart-controls")
-        ?.remove();
+      document.getElementById("exterstellar-better-goi-chart-controls")?.remove();
     };
   },
 });
@@ -1848,4 +1885,155 @@ function computeDaysOnTop(chart: any): Map<string, number> {
   }
 
   return wins;
+}
+
+let sidebarHotkeyAttached = false;
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable);
+}
+
+function handleSidebarHotkeyPress(e: KeyboardEvent) {
+  if (e.key !== "Tab") return;
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  if (isEditableTarget(e.target)) return;
+  if (!/^\/admin\/certification\/review\/[^/]+\/?$/.test(window.location.pathname)) return;
+
+  const toggle = document.querySelector<HTMLButtonElement>(".review-sidebar-toggle");
+  if (!toggle) return;
+
+  e.preventDefault();
+  toggle.click();
+}
+
+function handleSidebarToggleHotkey(
+  cfg: Record<string, string | number | boolean>,
+) {
+  if (cfg.sidebarToggleHotkey === false || cfg.sidebarToggleHotkey === "false")
+    return;
+
+  if (sidebarHotkeyAttached) return;
+  sidebarHotkeyAttached = true;
+
+  document.addEventListener("keydown", handleSidebarHotkeyPress);
+}
+
+const PERSONAL_STANDING_ID = "exterstellar-better-goi-personal-standing";
+
+interface LeaderboardStanding {
+  username: string;
+  total: number;
+}
+
+function getLeaderboardStandings(
+  table: HTMLTableElement,
+): LeaderboardStanding[] {
+  const rows = Array.from(
+    table.querySelectorAll("tbody tr"),
+  ) as HTMLTableRowElement[];
+
+  return rows.map((row) => {
+    const username = getUsernameFromLeaderboardRow(row) ?? "";
+    const totalCell = row.querySelectorAll("td")[2] ?? null;
+    const total = parseNumericCellValue(totalCell);
+    return { username, total };
+  });
+}
+
+function computePersonalStanding(
+  standings: LeaderboardStanding[],
+  myUsername: string,
+): {
+  rank: number;
+  total: number;
+  percentile: number;
+  gapToFirst: number;
+  gapToNext: number | null;
+} | null {
+  const myIndex = standings.findIndex((s) => s.username === myUsername);
+  if (myIndex === -1) return null;
+
+  const me = standings[myIndex]!;
+  const first = standings[0]!;
+  const above = myIndex > 0 ? standings[myIndex - 1]! : null;
+
+  return {
+    rank: myIndex + 1,
+    total: me.total,
+    percentile: Math.round(((myIndex + 1) / standings.length) * 100),
+    gapToFirst: first.total - me.total,
+    gapToNext: above ? above.total - me.total : null,
+  };
+}
+
+async function injectPersonalStanding(goalEl: Element, table: HTMLTableElement) {
+  if (document.getElementById(PERSONAL_STANDING_ID)) return;
+
+  const myUsername = getMyUsername();
+  if (!myUsername) return;
+
+  const standings = getLeaderboardStandings(table);
+  const standing = computePersonalStanding(standings, myUsername);
+  if (!standing) return;
+
+  const container = document.createElement("div");
+  container.id = PERSONAL_STANDING_ID;
+  container.classList.add("exterstellar-better-goi-standing-group");
+
+  const makeBox = (label: string) => {
+    const box = document.createElement("div");
+    box.classList.add("exterstellar-better-goi-week-stat");
+    box.setAttribute("role", "status");
+    box.setAttribute("aria-live", "polite");
+
+    const span = document.createElement("span");
+    span.classList.add("ysws-queue__goal-label");
+    span.textContent = label;
+    box.appendChild(span);
+
+    return box;
+  };
+
+  if (standing.rank === 1) {
+    container.appendChild(makeBox(`Top ${standing.percentile}%`));
+    container.appendChild(makeBox("You're #1!"));
+  } else {
+    container.appendChild(makeBox(`Top ${standing.percentile}%`));
+    container.appendChild(
+      makeBox(`${standing.gapToFirst} devlog${standing.gapToFirst === 1 ? "" : "s"} behind #1`),
+    );
+    if (standing.gapToNext !== null) {
+      container.appendChild(
+        makeBox(`${standing.gapToNext} devlog${standing.gapToNext === 1 ? "" : "s"} to next rank`),
+      );
+    }
+  }
+
+  goalEl.after(container);
+}
+
+function handlePersonalStanding(
+  cfg: Record<string, string | number | boolean>,
+) {
+  if (cfg.personalStanding === false || cfg.personalStanding === "false")
+    return;
+  if (document.getElementById(PERSONAL_STANDING_ID)) return;
+
+  let attempts = 0;
+  const tryInject = () => {
+    const goalEl = document.querySelector(".ysws-dashboard__panel--chart");
+    const table = document.querySelector<HTMLTableElement>(
+      ".ysws-dashboard__table",
+    );
+    if (goalEl && table) {
+      injectPersonalStanding(goalEl, table);
+      return;
+    }
+    attempts += 1;
+    if (attempts < 20) requestAnimationFrame(tryInject);
+  };
+
+  tryInject();
 }
