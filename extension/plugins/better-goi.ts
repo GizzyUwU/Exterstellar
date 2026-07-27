@@ -733,24 +733,32 @@ function injectChartControls(panel: Element, canvas: HTMLCanvasElement) {
   heading.insertAdjacentElement("afterend", wrapper);
 }
 
+function findReviewerChartElements(): {
+  canvas: HTMLCanvasElement;
+  panel: Element;
+} | null {
+  const chartWrapper = document.querySelector(
+    `.ysws-dashboard__chart[data-controller="certification--ysws--reviewer-chart"]`,
+  );
+  const canvas = chartWrapper?.querySelector<HTMLCanvasElement>(
+    '[data-certification--ysws--reviewer-chart-target="canvas"]',
+  );
+  const panel = chartWrapper?.closest(".ysws-dashboard__panel--chart");
+
+  if (canvas && panel) return { canvas, panel };
+  return null;
+}
+
 function handleChartControls(cfg: Record<string, string | number | boolean>) {
   if (document.getElementById(CHART_CONTROLS_ID)) return;
   if (cfg.graphs == false || cfg.graphs === "false") return;
   let attempts = 0;
   const tryInject = () => {
-    const chartWrapper = document.querySelector(
-      `.ysws-dashboard__chart[data-controller="certification--ysws--reviewer-chart"]`,
-    );
-    const canvas = chartWrapper?.querySelector<HTMLCanvasElement>(
-      '[data-certification--ysws--reviewer-chart-target="canvas"]',
-    );
-    const panel = chartWrapper?.closest(".ysws-dashboard__panel--chart");
-
-    if (canvas && panel) {
-      injectChartControls(panel, canvas);
+    const found = findReviewerChartElements();
+    if (found) {
+      injectChartControls(found.panel, found.canvas);
       return;
     }
-
     attempts += 1;
     if (attempts < 20) requestAnimationFrame(tryInject);
   };
@@ -825,7 +833,7 @@ function handleDevlogReviewPanels(
 function handleRandomProject(cfg: Record<string, string | number | boolean>) {
   if (cfg.randomProjectBTN === false || cfg.randomProjectBTN === "false")
     return;
-  if (document.querySelector('[data-exterstellar-random-project-btn]')) return;
+  if (document.querySelector("[data-exterstellar-random-project-btn]")) return;
 
   const filtersBTN = document.querySelector("a.ysws-queue__reset-filters");
   if (!filtersBTN) return;
@@ -846,7 +854,9 @@ function handleRandomProject(cfg: Record<string, string | number | boolean>) {
     if (rows.length === 0) return;
 
     const links = rows
-      .map((row) => row.querySelector<HTMLAnchorElement>("a.ysws-queue__view-btn"))
+      .map((row) =>
+        row.querySelector<HTMLAnchorElement>("a.ysws-queue__view-btn"),
+      )
       .filter((link): link is HTMLAnchorElement => link !== null);
 
     if (links.length === 0) return;
@@ -989,7 +999,135 @@ const GOI_CSS = `
       text-decoration: none;
       cursor: pointer;
   }
+
+  .exterstellar-better-goi-week-stat {
+      display: flex;
+      align-items: baseline;
+      align-self: flex-end;
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-s);
+      background: var(--color-set-1-bg);
+      border: 2px solid var(--color-set-1-fg-secondary);
+      border-radius: var(--profile-radius);
+  }
 `;
+
+// User weekly devlogs
+function parseLabelToDate(label: string, reference: Date): Date {
+  const [monthStr, dayStr] = label.split("/");
+  const month = parseInt(monthStr ?? "1", 10) - 1;
+  const day = parseInt(dayStr ?? "1", 10);
+
+  let year = reference.getFullYear();
+  let date = new Date(year, month, day);
+
+  const diffDays = (date.getTime() - reference.getTime()) / 86_400_000;
+  if (diffDays > 180) {
+    date = new Date(year - 1, month, day);
+  } else if (diffDays < -180) {
+    date = new Date(year + 1, month, day);
+  }
+
+  return date;
+}
+
+function getWeekRange(reference: Date): { start: Date; end: Date } {
+  const day = reference.getDay();
+  const diffToMonday = (day + 6) % 7;
+
+  const start = new Date(reference);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - diffToMonday);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
+function extractPointValue(point: any): number {
+  if (typeof point === "number") return point;
+  if (point && typeof point.y === "number") return point.y;
+  return 0;
+}
+
+async function computeMyWeeklyDevlogCount(): Promise<number | null> {
+  const found = findReviewerChartElements();
+  if (!found) return null;
+
+  const username = getMyUsername();
+  if (!username) return null;
+
+  const chart = await getChartInstance(found.canvas);
+  if (!chart) return null;
+
+  const labels: string[] = chart.data.labels ?? [];
+  const dataset = chart.data.datasets.find(
+    (d: any) => (d.label ?? "").trim().toLowerCase() === username,
+  );
+  if (!dataset?.data || !labels.length) return null;
+
+  const now = new Date();
+  const { start, end } = getWeekRange(now);
+
+  let sum = 0;
+  for (let i = 0; i < labels.length; i++) {
+    const labelDate = parseLabelToDate(labels[i] ?? "", now);
+    if (labelDate >= start && labelDate <= end) {
+      sum += extractPointValue(dataset.data[i]);
+    }
+  }
+
+  return sum;
+}
+
+const WEEK_STAT_ID = "exterstellar-better-goi-week-stat";
+
+async function injectWeeklyStat(goalEl: Element) {
+  if (document.getElementById(WEEK_STAT_ID)) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.id = WEEK_STAT_ID;
+  wrapper.classList.add(
+    "exterstellar-better-goi-week-stat",
+  );
+  wrapper.setAttribute("role", "status");
+  wrapper.setAttribute("aria-live", "polite");
+
+  const span = document.createElement("span");
+  span.classList.add("ysws-queue__goal-label");
+  span.textContent = "Checking your week...";
+  wrapper.appendChild(span);
+
+  goalEl.after(wrapper);
+
+  const count = await computeMyWeeklyDevlogCount();
+  if (count === null) {
+    wrapper.remove();
+    return;
+  }
+
+  span.textContent = `You've reviewed ${count} devlog${count === 1 ? "" : "s"} this week`;
+}
+
+function handleWeeklyStat(cfg: Record<string, string | number | boolean>) {
+  if (cfg.weeklyStat === false || cfg.weeklyStat === "false") return;
+  if (document.getElementById(WEEK_STAT_ID)) return;
+
+  let attempts = 0;
+  const tryInject = () => {
+    const goalEl = document.querySelector(".ysws-queue__goal");
+    if (goalEl) {
+      injectWeeklyStat(goalEl);
+      return;
+    }
+    attempts += 1;
+    if (attempts < 20) requestAnimationFrame(tryInject);
+  };
+
+  tryInject();
+}
 
 if (sessionStorage.getItem("_ext_better-goi_pre") === "1") {
   const pre = document.createElement("style");
@@ -1030,6 +1168,12 @@ Exterstellar.register({
       default: true,
     },
     {
+      key: "markdown",
+      label: "Use extension's markdown support in reviews",
+      type: "checkbox",
+      default: true,
+    },
+    {
       key: "graphs",
       label: "Show graph buttons such as Only show me",
       type: "checkbox",
@@ -1044,6 +1188,12 @@ Exterstellar.register({
     {
       key: "randomProjectBTN",
       label: "Show 'Open a random project' button on the queue page",
+      type: "checkbox",
+      default: true,
+    },
+    {
+      key: "weeklyStat",
+      label: "Show your weekly devlog review count next to the goal",
       type: "checkbox",
       default: true,
     },
@@ -1078,6 +1228,7 @@ Exterstellar.register({
         handleQueuePage(cfg);
         handleChartControls(cfg);
         handleRandomProject(cfg);
+        handleWeeklyStat(cfg);
       }
       if (isReviewDetailPage()) {
         handleReviewDetailPage(cfg);
