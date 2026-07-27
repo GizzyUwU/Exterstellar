@@ -305,10 +305,6 @@ function handleQueuePage(cfg: Record<string, string | number | boolean>) {
 }
 
 // Devlog MD
-const DEVLOG_ITEM_SELECTOR = ".devlog-item";
-const DEVLOG_DESC_SELECTOR = ".devlog-desc";
-const DEVLOG_MD_PROCESSED_ATTR = "data-goi-md-rendered";
-
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
@@ -318,8 +314,46 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+
+let slackEmojiMap: Record<any, any> = {};
+async function fetchSlackEmojis() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({type: "GET_SLACK_EMOJIS"}, (data) => {
+      if (data && data.ok) {
+        slackEmojiMap = data.emoji;
+        resolve(true);
+      } else {
+        resolve(false);
+      }
+    });
+  });
+}
+
+let emojiSupportEnabled = true;
+let emojiMapLoaded = false;
+let emojiMapLoadingPromise: Promise<void> | null = null;
+
+async function ensureSlackEmojisLoaded(cfg: Record<string, string | number | boolean>,): Promise<void> {
+  if (cfg.emojiSupport === false || cfg.emojiSupport === "false") return;
+  if (emojiMapLoadingPromise) return emojiMapLoadingPromise;
+  emojiMapLoadingPromise = fetchSlackEmojis().then(() => {
+    emojiMapLoaded = true;
+  });
+  return emojiMapLoadingPromise;
+}
+
+function formatEmoji(escaped: string): string {
+  return escaped.replace(/:([a-z0-9_+\-]+):/gi, (match, name) => {
+    const url = slackEmojiMap[name.toLowerCase()];
+    if (!url) return match;
+    const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=20&h=20&fit=contain`;
+    return `<img src="${proxyUrl}" alt=":${name}:" title=":${name}:" class="exterstellar-better-goi-emoji">`;
+  });
+}
+
 function formatInline(escaped: string): string {
-  let out = escaped.replace(
+  let out = emojiSupportEnabled ? formatEmoji(escaped) : escaped;
+  out = out.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
     (_m, text, href) => {
       const safeHref = escapeHtml(String(href));
@@ -395,7 +429,7 @@ function renderDevlogMarkdown(raw: string): string {
 }
 
 function formatDevlogDesc(desc: HTMLElement) {
-  if (desc.getAttribute(DEVLOG_MD_PROCESSED_ATTR) === "1") return;
+  if (desc.getAttribute("data-goi-md-rendered") === "1") return;
 
   const raw = desc.innerHTML ?? "";
   if (!raw.trim()) return;
@@ -404,18 +438,24 @@ function formatDevlogDesc(desc: HTMLElement) {
   const replacement = document.createElement("div");
   replacement.className = desc.className;
   replacement.classList.add("exterstellar-better-goi-devlog-md");
-  replacement.setAttribute(DEVLOG_MD_PROCESSED_ATTR, "1");
+  replacement.setAttribute("data-goi-md-rendered", "1");
   replacement.innerHTML = rendered;
 
   desc.replaceWith(replacement);
 }
 
-function handleDevlogMarkdown(cfg: Record<string, string | number | boolean>) {
+async function handleDevlogMarkdown(
+  cfg: Record<string, string | number | boolean>,
+) {
   if (cfg.markdown === false || cfg.markdown === "false") return;
 
-  const items = document.querySelectorAll(DEVLOG_ITEM_SELECTOR);
+  emojiSupportEnabled =
+    cfg.emojiSupport !== false && cfg.emojiSupport !== "false";
+  if (emojiSupportEnabled) await ensureSlackEmojisLoaded(cfg);
+
+  const items = document.querySelectorAll(".devlog-item");
   for (const item of Array.from(items)) {
-    const desc = item.querySelector<HTMLElement>(DEVLOG_DESC_SELECTOR);
+    const desc = item.querySelector<HTMLElement>(".devlog-desc");
     if (desc) formatDevlogDesc(desc);
   }
 }
@@ -823,7 +863,7 @@ function handleDevlogReviewPanels(
 ) {
   if (cfg.commitsButton === false || cfg.commitsButton === "false") return;
 
-  const items = document.querySelectorAll(DEVLOG_ITEM_SELECTOR);
+  const items = document.querySelectorAll(".devlog-item");
   for (const item of Array.from(items)) {
     injectOpenAllCommitsButton(item);
   }
@@ -1033,6 +1073,13 @@ const GOI_CSS = `
     
     .exterstellar-better-goi-approve-all-link:hover {
       opacity: 0.85;
+    }
+
+    .exterstellar-better-goi-emoji {
+      width: 20px;
+      height: 20px;
+      vertical-align: middle;
+      display: inline-block;
     }
 `;
 
@@ -1485,7 +1532,7 @@ function handleLeaderboardSorting(
 
 // Approve all devlogs missing a verdict hyperlink
 function getMissingVerdictItems(): Element[] {
-  const items = Array.from(document.querySelectorAll(DEVLOG_ITEM_SELECTOR));
+  const items = Array.from(document.querySelectorAll(".devlog-item"));
   return items.filter((item) => {
     const status = item.getAttribute(
       "data-certification--ysws--devlog-review-status-value",
@@ -1566,6 +1613,7 @@ function handleApproveAllMissingVerdict(
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 }
+
 
 if (sessionStorage.getItem("_ext_better-goi_pre") === "1") {
   const pre = document.createElement("style");
@@ -1650,6 +1698,12 @@ Exterstellar.register({
     {
       key: "approveAllMissingVerdict",
       label: "Show 'Approve all missing verdict' link on incomplete-review error",
+      type: "checkbox",
+      default: true,
+    },
+    {
+      key: "emojiSupport",
+      label: "Render Slack emoji shortcodes in devlog markdown",
       type: "checkbox",
       default: true,
     },
