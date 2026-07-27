@@ -1023,6 +1023,17 @@ const GOI_CSS = `
       font-size: 0.75em;
       opacity: 0.8;
     }
+
+    .exterstellar-better-goi-approve-all-link {
+      color: inherit;
+      text-decoration: underline;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    
+    .exterstellar-better-goi-approve-all-link:hover {
+      opacity: 0.85;
+    }
 `;
 
 // User weekly devlogs
@@ -1472,6 +1483,90 @@ function handleLeaderboardSorting(
   if (table) initLeaderboardSorting(table);
 }
 
+// Approve all devlogs missing a verdict hyperlink
+function getMissingVerdictItems(): Element[] {
+  const items = Array.from(document.querySelectorAll(DEVLOG_ITEM_SELECTOR));
+  return items.filter((item) => {
+    const status = item.getAttribute(
+      "data-certification--ysws--devlog-review-status-value",
+    );
+    if (status === "rejected" || status === "approved") return false;
+
+    const isLocked = item.querySelector(".devlog-header-row .status-frozen");
+    if (isLocked) return false;
+
+    return true;
+  });
+}
+
+function approveAllMissingVerdict() {
+  const items = getMissingVerdictItems();
+  for (const item of items) {
+    const approveBtn = item.querySelector<HTMLButtonElement>(
+      '[data-certification--ysws--devlog-review-target="approveButton"]',
+    );
+    approveBtn?.click();
+  }
+
+  const closeBtn = document.querySelector<HTMLButtonElement>(".alert__close");
+  closeBtn?.click();
+}
+
+function injectApproveAllLink(alertContent: HTMLElement) {
+  if (document.getElementById("exterstellar-better-goi-approve-all-link")) return;
+
+  const link = document.createElement("a");
+  link.id = "exterstellar-better-goi-approve-all-link";
+  link.href = "#";
+  link.textContent = "Approve all devlogs missing a verdict?";
+  link.classList.add("exterstellar-better-goi-approve-all-link");
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    approveAllMissingVerdict();
+  });
+
+  alertContent.appendChild(document.createTextNode(" "));
+  alertContent.appendChild(link);
+}
+
+function checkFlashForMissingVerdict() {
+  if (!/^\/admin\/certification\/review\/[^/]+\/?$/.test(window.location.pathname))
+    return;
+
+  const flashContainer = document.querySelector(".flash-container");
+  const alertContent = flashContainer?.querySelector<HTMLElement>(".alert__content");
+  if (!alertContent) return;
+
+  const text = alertContent.textContent ?? "";
+  if (!text.includes("Review all devlogs before completing")) return;
+  if (alertContent.hasAttribute("data-exterstellar-approve-all-injected")) return;
+
+  alertContent.setAttribute("data-exterstellar-approve-all-injected", "1");
+  injectApproveAllLink(alertContent);
+}
+
+let approveAllObserverAttached = false;
+
+function handleApproveAllMissingVerdict(
+  cfg: Record<string, string | number | boolean>,
+) {
+  if (
+    cfg.approveAllMissingVerdict === false ||
+    cfg.approveAllMissingVerdict === "false"
+  )
+    return;
+
+  checkFlashForMissingVerdict();
+
+  if (approveAllObserverAttached) return;
+  approveAllObserverAttached = true;
+
+  const observer = new MutationObserver(() => {
+    checkFlashForMissingVerdict();
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+}
+
 if (sessionStorage.getItem("_ext_better-goi_pre") === "1") {
   const pre = document.createElement("style");
   pre.id = "exterstellar-better-goi";
@@ -1552,6 +1647,12 @@ Exterstellar.register({
       type: "checkbox",
       default: true,
     },
+    {
+      key: "approveAllMissingVerdict",
+      label: "Show 'Approve all missing verdict' link on incomplete-review error",
+      type: "checkbox",
+      default: true,
+    },
   ],
   start() {
     const cfg = Exterstellar.getConfig("better-goi");
@@ -1593,6 +1694,7 @@ Exterstellar.register({
         handleReviewDetailPage(cfg);
         handleDevlogMarkdown(cfg);
         handleDevlogReviewPanels(cfg);
+        handleApproveAllMissingVerdict(cfg);
       }
     };
 
