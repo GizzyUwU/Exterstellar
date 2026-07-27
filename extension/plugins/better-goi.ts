@@ -1159,7 +1159,10 @@ function getUsernameFromLeaderboardRow(
   return text ? text.toLowerCase() : null;
 }
 
-async function injectWeeklyLeaderboardColumn(table: HTMLTableElement) {
+async function injectWeeklyLeaderboardColumn(
+  table: HTMLTableElement,
+  cfg: Record<string, string | number | boolean>,
+) {
   if (table.hasAttribute(WEEKLY_COL_MARKER_ATTR)) return;
   table.setAttribute(WEEKLY_COL_MARKER_ATTR, "1");
 
@@ -1169,29 +1172,50 @@ async function injectWeeklyLeaderboardColumn(table: HTMLTableElement) {
   const chart = await getChartInstance(found.canvas);
   if (!chart) return;
 
+  const showRankChange = cfg.rankChange !== false && cfg.rankChange !== "false";
+
   const headRow = table.querySelector("thead tr");
   if (headRow) {
     const th = document.createElement("th");
     th.classList.add("ysws-dashboard__col-num");
     th.textContent = "This week";
     headRow.appendChild(th);
+
+    if (showRankChange) {
+      const rankTh = document.createElement("th");
+      rankTh.classList.add("ysws-dashboard__col-num");
+      rankTh.textContent = "Past 7 days";
+      headRow.appendChild(rankTh);
+    }
   }
 
   const now = new Date();
+  const labels: string[] = chart.data.labels ?? [];
+  const cutoffIndex = Math.max(0, labels.length - 7);
+  const priorRanks = showRankChange ? computeRanksAtCutoff(chart, cutoffIndex) : null;
+
   const rows = Array.from(
     table.querySelectorAll("tbody tr"),
   ) as HTMLTableRowElement[];
 
-  for (const row of rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!;
     const username = getUsernameFromLeaderboardRow(row);
-    const count = username
-      ? await computeWeeklyCountForUsername(chart, username, now)
-      : null;
+    const count = username ? await computeWeeklyCountForUsername(chart, username, now) : null;
 
     const td = document.createElement("td");
     td.classList.add("ysws-dashboard__col-num");
     td.textContent = count === null ? "0" : String(count);
     row.appendChild(td);
+
+    if (showRankChange && priorRanks) {
+      const currentRank = i + 1;
+      const previousRank = username ? priorRanks.get(username) : undefined;
+      const rankTd = document.createElement("td");
+      rankTd.classList.add("ysws-dashboard__col-num");
+      rankTd.textContent = formatRankChange(currentRank, previousRank);
+      row.appendChild(rankTd);
+    }
   }
 }
 
@@ -1207,7 +1231,7 @@ function handleWeeklyLeaderboardColumn(
   const table = document.querySelector<HTMLTableElement>(
     ".ysws-dashboard__table",
   );
-  if (table) injectWeeklyLeaderboardColumn(table);
+  if (table) injectWeeklyLeaderboardColumn(table, cfg);
 }
 
 // LB filters
@@ -1424,6 +1448,12 @@ Exterstellar.register({
       type: "checkbox",
       default: true,
     },
+    {
+      key: "rankChange",
+      label: "Show rank change vs 7 days ago on leaderboard",
+      type: "checkbox",
+      default: true,
+    },
   ],
   start() {
     const cfg = Exterstellar.getConfig("better-goi");
@@ -1480,3 +1510,37 @@ Exterstellar.register({
     };
   },
 });
+
+// sabio's code (IF YOU TOUCH THIS I WILL FIND YOU)
+// rank overtaking visual thingy idk
+
+function sumSeriesBeforeCutoff(data: any[], cutoffIndex: number): number {
+  let total = 0;
+  for (let i = 0; i < cutoffIndex; i++) {
+    total += extractPointValue(data[i]);
+  }
+  return total;
+}
+
+function computeRanksAtCutoff(chart: any, cutoffIndex: number): Map<string, number> {
+  const datasets: any[] = chart.data.datasets ?? [];
+
+  const totals = datasets.map((d) => ({
+    username: (d.label ?? "").trim().toLowerCase(),
+    total: sumSeriesBeforeCutoff(d.data ?? [], cutoffIndex),
+  }));
+
+  totals.sort((a, b) => b.total - a.total);
+
+  const ranks = new Map<string, number>();
+  totals.forEach((t, i) => ranks.set(t.username, i + 1));
+  return ranks;
+}
+
+function formatRankChange(current: number, previous: number | undefined): string {
+  if (previous === undefined) return "New";
+
+  const diff = previous - current;
+  if (diff === 0) return "-";
+  return diff > 0 ? `▲${diff}` : `▼${Math.abs(diff)}`;
+}
