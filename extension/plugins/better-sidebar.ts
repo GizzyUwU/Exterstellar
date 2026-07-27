@@ -68,6 +68,8 @@ const SIDEBAR_CSS = `
     flex-direction: column;
     gap: 4px;
     padding: 12px 0;
+    margin-top: auto;
+    margin-bottom: auto;
   }
 
   .sidebar__logo {
