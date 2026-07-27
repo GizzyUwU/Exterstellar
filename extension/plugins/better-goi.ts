@@ -314,11 +314,10 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
-
 let slackEmojiMap: Record<any, any> = {};
 async function fetchSlackEmojis() {
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage({type: "GET_SLACK_EMOJIS"}, (data) => {
+    chrome.runtime.sendMessage({ type: "GET_SLACK_EMOJIS" }, (data) => {
       if (data && data.ok) {
         slackEmojiMap = data.emoji;
         resolve(true);
@@ -333,7 +332,9 @@ let emojiSupportEnabled = true;
 let emojiMapLoaded = false;
 let emojiMapLoadingPromise: Promise<void> | null = null;
 
-async function ensureSlackEmojisLoaded(cfg: Record<string, string | number | boolean>,): Promise<void> {
+async function ensureSlackEmojisLoaded(
+  cfg: Record<string, string | number | boolean>,
+): Promise<void> {
   if (cfg.emojiSupport === false || cfg.emojiSupport === "false") return;
   if (emojiMapLoadingPromise) return emojiMapLoadingPromise;
   emojiMapLoadingPromise = fetchSlackEmojis().then(() => {
@@ -1070,7 +1071,7 @@ const GOI_CSS = `
       font-weight: 600;
       cursor: pointer;
     }
-    
+
     .exterstellar-better-goi-approve-all-link:hover {
       opacity: 0.85;
     }
@@ -1257,7 +1258,9 @@ async function injectWeeklyLeaderboardColumn(
   const now = new Date();
   const labels: string[] = chart.data.labels ?? [];
   const cutoffIndex = Math.max(0, labels.length - 7);
-  const priorRanks = showRankChange ? computeRanksAtCutoff(chart, cutoffIndex) : null;
+  const priorRanks = showRankChange
+    ? computeRanksAtCutoff(chart, cutoffIndex)
+    : null;
   const daysOnTop = showDaysOnTop ? computeDaysOnTop(chart) : null;
 
   const rows = Array.from(
@@ -1288,7 +1291,9 @@ async function injectWeeklyLeaderboardColumn(
     if (showDaysOnTop && daysOnTop) {
       const daysOnTopTd = document.createElement("td");
       daysOnTopTd.classList.add("ysws-dashboard__col-num");
-      daysOnTopTd.textContent = String(username ? daysOnTop.get(username) ?? 0 : 0);
+      daysOnTopTd.textContent = String(
+        username ? (daysOnTop.get(username) ?? 0) : 0,
+      );
       row.appendChild(daysOnTopTd);
     }
   }
@@ -1461,7 +1466,7 @@ function restoreLeaderboardSort(
       (th.textContent ?? "").trim() === saved.column,
   );
   if (index === -1) return;
-  console.log("aaa")
+  console.log("aaa");
 
   const th = ths[index]!;
   clearSortIndicators(headRow);
@@ -1494,7 +1499,6 @@ function observeLeaderboardHeader(
   observer.observe(headRow, { childList: true });
 }
 
-
 function initLeaderboardSorting(table: HTMLTableElement) {
   const headRow = table.querySelector("thead tr") as HTMLTableRowElement | null;
   if (!headRow) return;
@@ -1512,9 +1516,9 @@ function finalizeLeaderboardSortRestore(
   const table = document.querySelector<HTMLTableElement>(
     ".ysws-dashboard__table",
   );
-  const headRow = table?.querySelector("thead tr") as
-    | HTMLTableRowElement
-    | null;
+  const headRow = table?.querySelector(
+    "thead tr",
+  ) as HTMLTableRowElement | null;
   if (table && headRow) restoreLeaderboardSort(table, headRow);
 }
 
@@ -1560,7 +1564,8 @@ function approveAllMissingVerdict() {
 }
 
 function injectApproveAllLink(alertContent: HTMLElement) {
-  if (document.getElementById("exterstellar-better-goi-approve-all-link")) return;
+  if (document.getElementById("exterstellar-better-goi-approve-all-link"))
+    return;
 
   const link = document.createElement("a");
   link.id = "exterstellar-better-goi-approve-all-link";
@@ -1577,16 +1582,20 @@ function injectApproveAllLink(alertContent: HTMLElement) {
 }
 
 function checkFlashForMissingVerdict() {
-  if (!/^\/admin\/certification\/review\/[^/]+\/?$/.test(window.location.pathname))
+  if (
+    !/^\/admin\/certification\/review\/[^/]+\/?$/.test(window.location.pathname)
+  )
     return;
 
   const flashContainer = document.querySelector(".flash-container");
-  const alertContent = flashContainer?.querySelector<HTMLElement>(".alert__content");
+  const alertContent =
+    flashContainer?.querySelector<HTMLElement>(".alert__content");
   if (!alertContent) return;
 
   const text = alertContent.textContent ?? "";
   if (!text.includes("Review all devlogs before completing")) return;
-  if (alertContent.hasAttribute("data-exterstellar-approve-all-injected")) return;
+  if (alertContent.hasAttribute("data-exterstellar-approve-all-injected"))
+    return;
 
   alertContent.setAttribute("data-exterstellar-approve-all-injected", "1");
   injectApproveAllLink(alertContent);
@@ -1611,9 +1620,11 @@ function handleApproveAllMissingVerdict(
   const observer = new MutationObserver(() => {
     checkFlashForMissingVerdict();
   });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
 }
-
 
 if (sessionStorage.getItem("_ext_better-goi_pre") === "1") {
   const pre = document.createElement("style");
@@ -1697,7 +1708,8 @@ Exterstellar.register({
     },
     {
       key: "approveAllMissingVerdict",
-      label: "Show 'Approve all missing verdict' link on incomplete-review error",
+      label:
+        "Show 'Approve all missing verdict' link on incomplete-review error",
       type: "checkbox",
       default: true,
     },
