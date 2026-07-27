@@ -1,12 +1,6 @@
 export {};
 declare const Exterstellar: import("../types").ExterstellarAPI;
 
-const SEARCH_WRAPPER_ID = "exterstellar-better-goi-search";
-const SEARCH_INPUT_ID = "exterstellar-better-goi-search-input";
-const SEARCH_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-icon lucide-search"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>`;
-const CHART_CONTROLS_ID = "exterstellar-better-goi-chart-controls";
-const STYLE_ID = "exterstellar-better-goi";
-
 // Search bar yippeeeee
 
 interface RowSearchData {
@@ -271,18 +265,22 @@ function injectSearchBar(
   form: Element,
   cfg: Record<string, string | number | boolean>,
 ) {
-  if (form.previousElementSibling?.id === SEARCH_WRAPPER_ID) return;
+  if (form.previousElementSibling?.id === "exterstellar-better-goi-search") return;
 
   const wrapper = document.createElement("div");
-  wrapper.id = SEARCH_WRAPPER_ID;
+  wrapper.id = "exterstellar-better-goi-search";
   wrapper.classList.add("exterstellar-better-goi-search-wrapper");
 
   const iconSpan = document.createElement("span");
   iconSpan.classList.add("exterstellar-better-goi-search-icon");
-  iconSpan.innerHTML = SEARCH_ICON_SVG;
+  iconSpan.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-icon lucide-search">
+      <path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>
+    </svg>
+  `;
 
   const search = document.createElement("input");
-  search.id = SEARCH_INPUT_ID;
+  search.id = "exterstellar-better-goi-search-input";
   search.classList.add("exterstellar-better-goi-search");
   search.placeholder =
     "Search by Review ID, Project Name, Project ID, Username or User ID...";
@@ -299,9 +297,7 @@ function handleQueuePage(cfg: Record<string, string | number | boolean>) {
   const form = document.querySelector("form.ysws-queue__filters");
   if (form) injectSearchBar(form, cfg);
 
-  const search = document.getElementById(
-    SEARCH_INPUT_ID,
-  ) as HTMLInputElement | null;
+  const search = document.getElementById("exterstellar-better-goi-search-input") as HTMLInputElement | null;
   if (search?.value) filterTable(search.value, cfg);
 }
 
@@ -696,13 +692,13 @@ async function setDatasetVisibility(
 }
 
 function injectChartControls(panel: Element, canvas: HTMLCanvasElement) {
-  if (document.getElementById(CHART_CONTROLS_ID)) return;
+  if (document.getElementById("exterstellar-better-goi-chart-controls")) return;
 
   const heading = panel.querySelector(".ysws-dashboard__heading");
   if (!heading) return;
 
   const wrapper = document.createElement("div");
-  wrapper.id = CHART_CONTROLS_ID;
+  wrapper.id = "exterstellar-better-goi-chart-controls";
   wrapper.classList.add("exterstellar-better-goi-chart-controls");
 
   const onlyMeBtn = document.createElement("button");
@@ -750,7 +746,7 @@ function findReviewerChartElements(): {
 }
 
 function handleChartControls(cfg: Record<string, string | number | boolean>) {
-  if (document.getElementById(CHART_CONTROLS_ID)) return;
+  if (document.getElementById("exterstellar-better-goi-chart-controls")) return;
   if (cfg.graphs == false || cfg.graphs === "false") return;
   let attempts = 0;
   const tryInject = () => {
@@ -1015,11 +1011,11 @@ const GOI_CSS = `
       cursor: pointer;
       user-select: none;
     }
-  
+
     .exterstellar-better-goi-sortable-th:hover {
       color: var(--color-brand-highlight);
     }
-  
+
     .exterstellar-better-goi-sort-indicator {
       font-size: 0.75em;
       opacity: 0.8;
@@ -1304,7 +1300,7 @@ function makeColumnSortable(
   const activate = () => {
     const currentDir = th.dataset.sortDir;
     const nextDir: SortDirection = currentDir === "desc" ? "asc" : "desc";
-  
+
     clearSortIndicators(headRow);
     th.dataset.sortDir = nextDir;
     markSortIndicator(th, nextDir);
@@ -1362,7 +1358,7 @@ function handleLeaderboardSorting(
 
 if (sessionStorage.getItem("_ext_better-goi_pre") === "1") {
   const pre = document.createElement("style");
-  pre.id = STYLE_ID;
+  pre.id = "exterstellar-better-goi";
   pre.textContent = GOI_CSS;
   document.documentElement.appendChild(pre);
 }
@@ -1439,10 +1435,10 @@ Exterstellar.register({
     const preload = cfg.preload !== false && cfg.preload !== "false";
     sessionStorage.setItem("_ext_better-goi_pre", preload ? "1" : "0");
 
-    let style = document.getElementById(STYLE_ID);
+    let style = document.getElementById("exterstellar-better-goi");
     if (!style) {
       style = document.createElement("style");
-      style.id = STYLE_ID;
+      style.id = "exterstellar-better-goi";
       style.textContent = GOI_CSS;
     }
     document.head.appendChild(style);
@@ -1479,8 +1475,8 @@ Exterstellar.register({
       style?.remove();
       document.removeEventListener("turbo:load", onTurboUpdate);
       document.removeEventListener("turbo:frame-load", onTurboUpdate);
-      document.getElementById(SEARCH_WRAPPER_ID)?.remove();
-      document.getElementById(CHART_CONTROLS_ID)?.remove();
+      document.getElementById("exterstellar-better-goi-search")?.remove();
+      document.getElementById("exterstellar-better-goi-chart-controls")?.remove();
     };
   },
 });
