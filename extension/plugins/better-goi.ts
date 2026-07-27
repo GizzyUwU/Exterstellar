@@ -4,14 +4,8 @@ declare const Exterstellar: import("../types").ExterstellarAPI;
 const SEARCH_WRAPPER_ID = "exterstellar-better-goi-search";
 const SEARCH_INPUT_ID = "exterstellar-better-goi-search-input";
 const SEARCH_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-icon lucide-search"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>`;
-const CHART_WRAPPER_SELECTOR =
-  '.ysws-dashboard__chart[data-controller="certification--ysws--reviewer-chart"]';
-const CHART_CANVAS_SELECTOR =
-  '[data-certification--ysws--reviewer-chart-target="canvas"]';
-const CHART_PANEL_SELECTOR = ".ysws-dashboard__panel--chart";
 const CHART_CONTROLS_ID = "exterstellar-better-goi-chart-controls";
 const STYLE_ID = "exterstellar-better-goi";
-const REVIEW_DETAIL_SIDEBAR_SELECTOR = "div.review-detail-right";
 
 // Search bar yippeeeee
 
@@ -22,6 +16,7 @@ interface RowSearchData {
   userName: string;
   userId: string;
   lengthHours: string;
+  age: string;
 }
 
 function getRowSearchData(row: HTMLTableRowElement): RowSearchData {
@@ -41,6 +36,10 @@ function getRowSearchData(row: HTMLTableRowElement): RowSearchData {
 
   const lengthHours = cells[4]?.textContent?.trim().toLowerCase() ?? "";
   const userCell = cells[3];
+  const age =
+    (
+      cells[6]?.querySelector("span") as HTMLSpanElement | null
+    )?.textContent?.trim() ?? "";
   const userLink = userCell?.querySelector("a") as HTMLAnchorElement | null;
   const userName = userLink?.textContent?.trim().toLowerCase() ?? "";
   let userId = "";
@@ -49,7 +48,15 @@ function getRowSearchData(row: HTMLTableRowElement): RowSearchData {
     userId = match?.[1] ?? "";
   }
 
-  return { reviewId, projectName, projectId, userName, userId, lengthHours };
+  return {
+    reviewId,
+    projectName,
+    projectId,
+    userName,
+    userId,
+    lengthHours,
+    age,
+  };
 }
 
 function parseDevTimeToHours(raw: string): number {
@@ -68,62 +75,202 @@ function parseDevTimeToHours(raw: string): number {
   return Number.isNaN(plain) ? 0 : plain;
 }
 
-const DEV_TIME_LEEWAY_HOURS = 0.25;
+function parseRelativeAgeToHours(raw: string): number {
+  const s = raw.trim().toLowerCase();
+  if (!s) return NaN;
+  if (s.includes("just now") || s === "now") return 0;
 
-async function handleSWDashLinks(id: string, cfg: Record<string, string | number | boolean>) {
+  const match = s.match(
+    /(a|an|\d+(?:\.\d+)?)\s*(second|minute|hour|day|week|month|year)s?/,
+  );
+  if (!match) return NaN;
+
+  const rawNum = match[1] ?? "1";
+  const num = rawNum === "a" || rawNum === "an" ? 1 : parseFloat(rawNum);
+  const unit = match[2] ?? "";
+
+  const unitToHours: Record<string, number> = {
+    second: 1 / 3600,
+    minute: 1 / 60,
+    hour: 1,
+    day: 24,
+    week: 24 * 7,
+    month: 24 * 30,
+    year: 24 * 365,
+  };
+
+  const hoursPerUnit = unitToHours[unit];
+  return hoursPerUnit === undefined ? NaN : num * hoursPerUnit;
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+
+  const dp: number[] = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    let prevDiag = dp[0] ?? 0;
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const temp = dp[j] ?? 0;
+      dp[j] =
+        a[i - 1] === b[j - 1]
+          ? prevDiag
+          : 1 + Math.min(prevDiag, dp[j] ?? 0, dp[j - 1] ?? 0);
+      prevDiag = temp;
+    }
+  }
+  return dp[n] ?? Math.max(m, n);
+}
+
+function stringSimilarity(a: string, b: string): number {
+  const s1 = a.trim().toLowerCase();
+  const s2 = b.trim().toLowerCase();
+  if (!s1 || !s2) return 0;
+  if (s1 === s2) return 1;
+  if (s1.includes(s2) || s2.includes(s1)) return 0.85;
+
+  const dist = levenshteinDistance(s1, s2);
+  const maxLen = Math.max(s1.length, s2.length);
+  return Math.max(0, 1 - dist / maxLen);
+}
+
+function closenessFromDiff(diffHours: number, halfLifeHours: number): number {
+  if (!Number.isFinite(diffHours)) return 0;
+  return Math.exp((-Math.LN2 * diffHours) / halfLifeHours);
+}
+
+interface SWMatchScore {
+  row: HTMLTableRowElement;
+  score: number;
+}
+
+const SW_MATCH_WEIGHTS = {
+  projectName: 0.4,
+  devTime: 0.25,
+  age: 0.15,
+  username: 0.2,
+};
+
+function scoreRowAgainstSWProject(
+  row: HTMLTableRowElement,
+  sw: {
+    projectName: string;
+    devTimeHours: number;
+    ageHours: number;
+    username: string;
+  },
+): SWMatchScore {
+  const { projectName, userName, lengthHours, age } = getRowSearchData(row);
+
+  const projectSim = stringSimilarity(projectName, sw.projectName);
+  const usernameSim = stringSimilarity(userName, sw.username);
+
+  const devTimeDiff = Math.abs(
+    parseDevTimeToHours(lengthHours) - sw.devTimeHours,
+  );
+  const devTimeCloseness = closenessFromDiff(devTimeDiff, 0.5);
+
+  const rowAgeHours = parseRelativeAgeToHours(age);
+  const ageDiff = Math.abs(rowAgeHours - sw.ageHours);
+  const ageCloseness = closenessFromDiff(ageDiff, 20);
+
+  const score =
+    SW_MATCH_WEIGHTS.projectName * projectSim +
+    SW_MATCH_WEIGHTS.devTime * devTimeCloseness +
+    SW_MATCH_WEIGHTS.age * ageCloseness +
+    SW_MATCH_WEIGHTS.username * usernameSim;
+
+  return { row, score };
+}
+
+async function handleSWDashLinks(
+  id: string,
+  cfg: Record<string, string | number | boolean>,
+) {
   return await chrome.runtime.sendMessage({
     type: "FETCH_SW_CERT",
     id,
-    swCookie: "session=" + cfg.swCookie
+    swCookie: "session=" + cfg.swCookie,
   });
 }
 
-async function filterTable(query: string, cfg: Record<string, string | number | boolean>) {
-  let q = query.trim().toLowerCase();
-  let isSWLink = false;
-  let swProjectName = "";
-  let swDevTimeHours = 0;
+async function filterTable(
+  query: string,
+  cfg: Record<string, string | number | boolean>,
+) {
+  const q = query.trim().toLowerCase();
 
-  const swMatch = query.trim().match(/ds\.shipwrights\.dev\/stardance\/certifications\/([0-9a-f-]{36})/i);
-  if (swMatch && cfg.swCookie) {
-    const project = await handleSWDashLinks(swMatch[1] ?? "", cfg);
-    if (project?.projectName) {
-      swProjectName = String(project.projectName).trim().toLowerCase();
-      swDevTimeHours = parseDevTimeToHours(String(project.devTime ?? ""));
-      isSWLink = true;
-    }
-  }
+  const swMatch = query
+    .trim()
+    .match(/ds\.shipwrights\.dev\/stardance\/certifications\/([0-9a-f-]{36})/i);
 
   const table = document.querySelector(".ysws-queue__table-container table");
   if (!table) return;
+  const tbody = table.querySelector("tbody");
   const rows = Array.from(
     table.querySelectorAll("tbody tr"),
   ) as HTMLTableRowElement[];
 
+  if (swMatch && cfg.swCookie) {
+    const project = await handleSWDashLinks(swMatch[1] ?? "", cfg);
+
+    if (project?.projectName && project?.createdAt) {
+      const swProjectName = String(project.projectName).trim().toLowerCase();
+      const swDevTimeHours = parseDevTimeToHours(String(project.devTime ?? ""));
+      const swAgeHours =
+        (Date.now() - new Date(project.createdAt).getTime()) / (1000 * 60 * 60);
+      const swUsername = String(project.submitterUsername ?? "")
+        .trim()
+        .toLowerCase();
+
+      const ranked = rows
+        .map((row) =>
+          scoreRowAgainstSWProject(row, {
+            projectName: swProjectName,
+            devTimeHours: swDevTimeHours,
+            ageHours: swAgeHours,
+            username: swUsername,
+          }),
+        )
+        .sort((a, b) => b.score - a.score);
+
+      for (const { row, score } of ranked) {
+        row.style.display = "";
+        row.dataset.swMatchScore = score.toFixed(3);
+        tbody?.appendChild(row);
+      }
+      return;
+    }
+  }
+
   for (const row of rows) {
-    if (!q && !isSWLink) {
+    delete row.dataset.swMatchScore;
+    if (!q) {
       row.style.display = "";
       continue;
     }
-    const { reviewId, projectName, projectId, userName, userId, lengthHours } =
+    const { reviewId, projectName, projectId, userName, userId } =
       getRowSearchData(row);
 
-    console.log(isSWLink);
-    const matches = isSWLink
-      ? projectName.toLowerCase() === swProjectName &&
-        Math.abs(parseDevTimeToHours(lengthHours ?? "") - swDevTimeHours) <= DEV_TIME_LEEWAY_HOURS
-      : reviewId.includes(q) ||
-        projectName.includes(q) ||
-        projectId.includes(q) ||
-        userName.includes(q) ||
-        userId.includes(q) ||
-        reviewId.replace("#", "").includes(q.replace("#", ""));
+    const matches =
+      reviewId.includes(q) ||
+      projectName.includes(q) ||
+      projectId.includes(q) ||
+      userName.includes(q) ||
+      userId.includes(q) ||
+      reviewId.replace("#", "").includes(q.replace("#", ""));
 
     row.style.display = matches ? "" : "none";
   }
 }
 
-function injectSearchBar(form: Element, cfg: Record<string, string | number | boolean>) {
+function injectSearchBar(
+  form: Element,
+  cfg: Record<string, string | number | boolean>,
+) {
   if (form.previousElementSibling?.id === SEARCH_WRAPPER_ID) return;
 
   const wrapper = document.createElement("div");
@@ -162,7 +309,7 @@ function handleQueuePage(cfg: Record<string, string | number | boolean>) {
 const DEVLOG_ITEM_SELECTOR = ".devlog-item";
 const DEVLOG_DESC_SELECTOR = ".devlog-desc";
 const DEVLOG_MD_PROCESSED_ATTR = "data-goi-md-rendered";
- 
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
@@ -171,12 +318,15 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
- 
+
 function formatInline(escaped: string): string {
-  let out = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, text, href) => {
-    const safeHref = escapeHtml(String(href));
-    return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-  });
+  let out = escaped.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    (_m, text, href) => {
+      const safeHref = escapeHtml(String(href));
+      return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+    },
+  );
   out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   out = out.replace(/__([^_]+)__/g, "<strong>$1</strong>");
   out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
@@ -184,22 +334,22 @@ function formatInline(escaped: string): string {
   out = out.replace(/(^|[^_])_([^_]+)_(?!_)/g, "$1<em>$2</em>");
   return out;
 }
- 
+
 function renderDevlogMarkdown(raw: string): string {
   const normalized = raw.replace(/<br\s*\/?>/gi, "\n");
   const lines = normalized.split("\n");
- 
+
   const htmlParts: string[] = [];
   let paragraphBuffer: string[] = [];
   let listBuffer: string[] = [];
- 
+
   const flushParagraph = () => {
     if (paragraphBuffer.length) {
       htmlParts.push(`<p>${paragraphBuffer.join("<br>")}</p>`);
       paragraphBuffer = [];
     }
   };
- 
+
   const flushList = () => {
     if (listBuffer.length) {
       htmlParts.push(
@@ -208,16 +358,16 @@ function renderDevlogMarkdown(raw: string): string {
       listBuffer = [];
     }
   };
- 
+
   for (const rawLine of lines) {
     const line = rawLine.trim();
- 
+
     if (!line) {
       flushParagraph();
       flushList();
       continue;
     }
- 
+
     const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
       flushParagraph();
@@ -227,50 +377,49 @@ function renderDevlogMarkdown(raw: string): string {
       htmlParts.push(`<h${level}>${text}</h${level}>`);
       continue;
     }
- 
+
     const listMatch = line.match(/^[-*]\s+(.*)$/);
     if (listMatch) {
       flushParagraph();
       listBuffer.push(formatInline(escapeHtml((listMatch[1] ?? "").trim())));
       continue;
     }
- 
+
     flushList();
     paragraphBuffer.push(formatInline(escapeHtml(line)));
   }
- 
+
   flushParagraph();
   flushList();
- 
+
   return htmlParts.join("");
 }
- 
+
 function formatDevlogDesc(desc: HTMLElement) {
   if (desc.getAttribute(DEVLOG_MD_PROCESSED_ATTR) === "1") return;
- 
+
   const raw = desc.innerHTML ?? "";
   if (!raw.trim()) return;
- 
+
   const rendered = renderDevlogMarkdown(raw);
   const replacement = document.createElement("div");
   replacement.className = desc.className;
   replacement.classList.add("exterstellar-better-goi-devlog-md");
   replacement.setAttribute(DEVLOG_MD_PROCESSED_ATTR, "1");
   replacement.innerHTML = rendered;
- 
+
   desc.replaceWith(replacement);
 }
- 
+
 function handleDevlogMarkdown(cfg: Record<string, string | number | boolean>) {
   if (cfg.markdown === false || cfg.markdown === "false") return;
- 
+
   const items = document.querySelectorAll(DEVLOG_ITEM_SELECTOR);
   for (const item of Array.from(items)) {
     const desc = item.querySelector<HTMLElement>(DEVLOG_DESC_SELECTOR);
     if (desc) formatDevlogDesc(desc);
   }
 }
- 
 
 // All git commits on review
 type Commit = {
@@ -379,16 +528,19 @@ function formatDate(date: string) {
 }
 
 async function injectAllProjectsCommits(div: Element) {
-  if (div.querySelector("#allProjectCommits")) return;
+  if (div.hasAttribute("data-exterstellar-all-project-commits")) return;
   const sectionDetails = document.createElement("section");
-  sectionDetails.id = "allProjectCommits"
+  div.setAttribute("data-exterstellar-all-project-commits", "1");
   sectionDetails.classList.add("review-card", "details-card");
   const header = document.createElement("h3");
   header.textContent = "Git Activity";
   sectionDetails.appendChild(header);
 
   const commitArea = document.createElement("div");
-  commitArea.classList.add("details-list", "exterstellar-better-goi-commits-list");
+  commitArea.classList.add(
+    "details-list",
+    "exterstellar-better-goi-commits-list",
+  );
   const repoLink = Array.from(
     document.querySelectorAll<HTMLAnchorElement>("a.detail-link-btn"),
   ).find((a) => a.textContent?.trim() === "Repo");
@@ -410,9 +562,9 @@ async function injectAllProjectsCommits(div: Element) {
       return;
     } else {
       for (const commit of commitsData.reverse()) {
-        const commitDiv = document.createElement("div")
+        const commitDiv = document.createElement("div");
         commitDiv.classList.add("detail-item");
-        const commitKeyMSG = document.createElement("span")
+        const commitKeyMSG = document.createElement("span");
         commitKeyMSG.textContent = commit.message;
 
         const commitHash = document.createElement("a");
@@ -422,13 +574,15 @@ async function injectAllProjectsCommits(div: Element) {
         commitHash.href = commit.url;
         commitHash.target = "_blank";
         commitHash.rel = "noopener noreferrer";
-        commitKeyMSG.appendChild(commitHash)
-        commitDiv.appendChild(commitKeyMSG)
+        commitKeyMSG.appendChild(commitHash);
+        commitDiv.appendChild(commitKeyMSG);
 
-        const commitKeyDetails = document.createElement("span")
+        const commitKeyDetails = document.createElement("span");
         commitKeyDetails.textContent = `By ${commit.author} · ${formatDate(commit.date)}`;
-        commitKeyDetails.classList.add("exterstellar-better-goi-review-commit-details")
-        commitDiv.appendChild(commitKeyDetails)
+        commitKeyDetails.classList.add(
+          "exterstellar-better-goi-review-commit-details",
+        );
+        commitDiv.appendChild(commitKeyDetails);
         commitArea.appendChild(commitDiv);
       }
       sectionDetails.appendChild(commitArea);
@@ -437,14 +591,15 @@ async function injectAllProjectsCommits(div: Element) {
   div.appendChild(sectionDetails);
 }
 
-function handleReviewDetailPage(cfg: Record<string, string | number | boolean>) {
+function handleReviewDetailPage(
+  cfg: Record<string, string | number | boolean>,
+) {
   if (cfg.git === false || cfg.git === "false") return;
-  const sidebar = document.querySelector(REVIEW_DETAIL_SIDEBAR_SELECTOR);
+  const sidebar = document.querySelector("div.review-detail-right");
   if (sidebar) injectAllProjectsCommits(sidebar);
 }
 
 // Devlog review chart mods bleh
-
 function getMyUsername(): string | null {
   const handleEl = document.querySelector<HTMLAnchorElement>(
     ".sidebar__user-meta-handle",
@@ -583,11 +738,13 @@ function handleChartControls(cfg: Record<string, string | number | boolean>) {
   if (cfg.graphs == false || cfg.graphs === "false") return;
   let attempts = 0;
   const tryInject = () => {
-    const chartWrapper = document.querySelector(CHART_WRAPPER_SELECTOR);
-    const canvas = chartWrapper?.querySelector<HTMLCanvasElement>(
-      CHART_CANVAS_SELECTOR,
+    const chartWrapper = document.querySelector(
+      `.ysws-dashboard__chart[data-controller="certification--ysws--reviewer-chart"]`,
     );
-    const panel = chartWrapper?.closest(CHART_PANEL_SELECTOR);
+    const canvas = chartWrapper?.querySelector<HTMLCanvasElement>(
+      '[data-certification--ysws--reviewer-chart-target="canvas"]',
+    );
+    const panel = chartWrapper?.closest(".ysws-dashboard__panel--chart");
 
     if (canvas && panel) {
       injectChartControls(panel, canvas);
@@ -599,6 +756,108 @@ function handleChartControls(cfg: Record<string, string | number | boolean>) {
   };
 
   tryInject();
+}
+
+function getCommitUrlsFromItem(item: Element): string[] {
+  const svg = item.querySelector("svg.commit-graph");
+  if (!svg) return [];
+
+  const anchors = Array.from(svg.querySelectorAll("a[href]")) as SVGAElement[];
+
+  return anchors
+    .map((a) => a.getAttribute("href"))
+    .filter((href): href is string => !!href);
+}
+
+async function openCommitUrlsInTabs(urls: string[]) {
+  if (!urls.length) return;
+  return chrome.runtime.sendMessage({
+    type: "OPEN_TABS",
+    urls,
+  });
+}
+
+function injectOpenAllCommitsButton(item: Element) {
+  if (item.hasAttribute("data-exterstellar-open-all-commits")) return;
+
+  const panel = item.querySelector(".devlog-review-panel");
+  const panelTitle = panel?.querySelector(".panel-title");
+  if (!panelTitle?.parentElement) return;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.classList.add(
+    "status-btn",
+    "exterstellar-better-goi-commits-window-btn",
+  );
+  item.setAttribute("data-exterstellar-open-all-commits", "1");
+  button.textContent = "Open all commits in window";
+  const urls = getCommitUrlsFromItem(item);
+  if (urls.length === 0) {
+    button.disabled = true;
+  }
+
+  button.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const urls = getCommitUrlsFromItem(item);
+
+    if (!urls.length) {
+      console.warn("[Better GOI] No commits found in this panel");
+      return;
+    }
+    await openCommitUrlsInTabs(urls);
+  });
+
+  panelTitle.parentElement.insertBefore(button, panelTitle);
+}
+
+function handleDevlogReviewPanels(
+  cfg: Record<string, string | number | boolean>,
+) {
+  if (cfg.commitsButton === false || cfg.commitsButton === "false") return;
+
+  const items = document.querySelectorAll(DEVLOG_ITEM_SELECTOR);
+  for (const item of Array.from(items)) {
+    injectOpenAllCommitsButton(item);
+  }
+}
+
+function handleRandomProject(cfg: Record<string, string | number | boolean>) {
+  if (cfg.randomProjectBTN === false || cfg.randomProjectBTN === "false")
+    return;
+  if (document.querySelector('[data-exterstellar-random-project-btn]')) return;
+
+  const filtersBTN = document.querySelector("a.ysws-queue__reset-filters");
+  if (!filtersBTN) return;
+
+  const button = document.createElement("a");
+  button.classList.add("slim", "exterstellar-random-project-btn");
+  button.setAttribute("data-exterstellar-random-project-btn", "1");
+  button.textContent = "Open a random project";
+
+  button.addEventListener("click", () => {
+    const table = document.querySelector(".ysws-queue__table-container table");
+    if (!table) return;
+
+    const rows = Array.from(
+      table.querySelectorAll("tbody tr"),
+    ) as HTMLTableRowElement[];
+
+    if (rows.length === 0) return;
+
+    const links = rows
+      .map((row) => row.querySelector<HTMLAnchorElement>("a.ysws-queue__view-btn"))
+      .filter((link): link is HTMLAnchorElement => link !== null);
+
+    if (links.length === 0) return;
+
+    const choice = links[Math.floor(Math.random() * links.length)];
+
+    const w = window.open(choice!.href, "_blank", "noopener,noreferrer");
+    if (w) w.opener = null;
+  });
+
+  filtersBTN.after(button);
 }
 
 const GOI_CSS = `
@@ -665,19 +924,17 @@ const GOI_CSS = `
     width: 12px;
     background: rgba(0, 0, 0, 0.3);
   }
-  
-  /* Track */
+
   body::-webkit-scrollbar-track {
     width: 12px;
     background:  rgba(5, 4, 24, 0.02);
   }
-  
+
   body::-webkit-scrollbar-thumb {
     width: 12px;
     background: rgba(0, 0, 0, 0.3);
-    
   }
-  
+
   body::-webkit-scrollbar-thumb:hover {
     width: 12px;
   }
@@ -690,6 +947,47 @@ const GOI_CSS = `
 
   .certification-ysws .review-detail-right.is-popup-mode::-webkit-scrollbar {
     display: none;
+  }
+
+  .exterstellar-better-goi-commits-window-btn {
+    width: 100%;
+    margin-bottom: 10px;
+    background: var(--color-space-surface-strong);
+    color: var(--color-space-text-muted) !important;
+  }
+
+  .exterstellar-better-goi-commits-window-btn:hover:not(:disabled) {
+    background: var(--color-brand-mint);
+    color: var(--color-set-1-bg) !important;
+  }
+
+  .exterstellar-better-goi-commits-window-btn:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+  }
+
+  .exterstellar-random-project-btn {
+      display: inline-flex;
+      align-items: center;
+      align-self: flex-end;
+      padding: .375rem .75rem;
+      min-height: 2rem;
+      padding-inline: var(--space-s);
+      background: var(--color-set-1-bg);
+      border: 2px solid var(--color-set-1-fg-secondary);
+      border-radius: var(--profile-radius);
+      color: var(--color-space-text) !important;
+      font-size: var(--font-size-s);
+      font-weight: 700;
+      text-decoration: none;
+  }
+
+  .exterstellar-random-project-btn:hover {
+      background: hsla(0, 0%, 100%, .06);
+      border-color: var(--color-brand-highlight);
+      color: var(--color-brand-highlight);
+      text-decoration: none;
+      cursor: pointer;
   }
 `;
 
@@ -710,14 +1008,14 @@ Exterstellar.register({
       key: "preload",
       label: "Preload CSS before paint",
       type: "checkbox",
-      default: true
+      default: true,
     },
     {
       key: "swCookie",
       label: "SW Cookie (optional)",
       type: "text",
       placeholder: "...",
-      default: ""
+      default: "",
     },
     {
       key: "search",
@@ -734,6 +1032,18 @@ Exterstellar.register({
     {
       key: "graphs",
       label: "Show graph buttons such as Only show me",
+      type: "checkbox",
+      default: true,
+    },
+    {
+      key: "commitsButton",
+      label: "Show 'Open all commits' button on devlog review panels",
+      type: "checkbox",
+      default: true,
+    },
+    {
+      key: "randomProjectBTN",
+      label: "Show 'Open a random project' button on the queue page",
       type: "checkbox",
       default: true,
     },
@@ -767,10 +1077,12 @@ Exterstellar.register({
       if (isQueueListPage()) {
         handleQueuePage(cfg);
         handleChartControls(cfg);
+        handleRandomProject(cfg);
       }
       if (isReviewDetailPage()) {
         handleReviewDetailPage(cfg);
         handleDevlogMarkdown(cfg);
+        handleDevlogReviewPanels(cfg);
       }
     };
 

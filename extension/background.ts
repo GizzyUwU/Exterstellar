@@ -116,6 +116,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === "OPEN_TABS") {
+    const urls = Array.isArray(msg.urls) ? (msg.urls as unknown[]) : [];
+    for (const url of urls) {
+      if (typeof url === "string" && url) {
+        chrome.tabs.create({ url, active: false });
+      }
+    }
+    sendResponse({ ok: true });
+    return true;
+  }
+
   if (msg?.type !== "ext_lp_fetch") return false;
 
   const url: string = msg.url;
