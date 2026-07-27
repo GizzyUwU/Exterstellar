@@ -1172,6 +1172,7 @@ async function injectWeeklyLeaderboardColumn(
   if (!chart) return;
 
   const showRankChange = cfg.rankChange !== false && cfg.rankChange !== "false";
+  const showDaysOnTop = cfg.daysOnTop !== false && cfg.daysOnTop !== "false";
 
   const headRow = table.querySelector("thead tr");
   if (headRow) {
@@ -1186,14 +1187,20 @@ async function injectWeeklyLeaderboardColumn(
       rankTh.textContent = "Past 7 days";
       headRow.appendChild(rankTh);
     }
+
+    if (showDaysOnTop) {
+      const daysOnTopTh = document.createElement("th");
+      daysOnTopTh.classList.add("ysws-dashboard__col-num", SORTABLE_TH_CLASS);
+      daysOnTopTh.textContent = "Days on top";
+      headRow.appendChild(daysOnTopTh);
+    }
   }
 
   const now = new Date();
   const labels: string[] = chart.data.labels ?? [];
   const cutoffIndex = Math.max(0, labels.length - 7);
-  const priorRanks = showRankChange
-    ? computeRanksAtCutoff(chart, cutoffIndex)
-    : null;
+  const priorRanks = showRankChange ? computeRanksAtCutoff(chart, cutoffIndex) : null;
+  const daysOnTop = showDaysOnTop ? computeDaysOnTop(chart) : null;
 
   const rows = Array.from(
     table.querySelectorAll("tbody tr"),
@@ -1218,6 +1225,13 @@ async function injectWeeklyLeaderboardColumn(
       rankTd.classList.add("ysws-dashboard__col-num");
       rankTd.textContent = formatRankChange(currentRank, previousRank);
       row.appendChild(rankTd);
+    }
+
+    if (showDaysOnTop && daysOnTop) {
+      const daysOnTopTd = document.createElement("td");
+      daysOnTopTd.classList.add("ysws-dashboard__col-num");
+      daysOnTopTd.textContent = String(username ? daysOnTop.get(username) ?? 0 : 0);
+      row.appendChild(daysOnTopTd);
     }
   }
 }
@@ -1417,7 +1431,7 @@ function observeLeaderboardHeader(
   table.setAttribute(LEADERBOARD_SORT_INIT_ATTR, "1");
 
   const observer = new MutationObserver(() => {
-    makeAllNumericColumnsSortable(table, headRow); 
+    makeAllNumericColumnsSortable(table, headRow);
   });
   observer.observe(headRow, { childList: true });
 }
@@ -1532,6 +1546,12 @@ Exterstellar.register({
       type: "checkbox",
       default: true,
     },
+    {
+      key: "daysOnTop",
+      label: "Show days spent as #1 reviewer on that day",
+      type: "checkbox",
+      default: true,
+    },
   ],
   start() {
     const cfg = Exterstellar.getConfig("better-goi");
@@ -1593,7 +1613,7 @@ Exterstellar.register({
   },
 });
 
-// sabio's stinky code (IF YOU TOUCH THIS I WILL FIND YOU - I touched the comment :3)
+// sabio's good code (IF YOU TOUCH THIS I WILL FIND YOU - I touched the comment :3 - i will find u)
 // rank overtaking visual thingy idk
 
 function sumSeriesBeforeCutoff(data: any[], cutoffIndex: number): number {
@@ -1631,4 +1651,33 @@ function formatRankChange(
   const diff = previous - current;
   if (diff === 0) return "-";
   return diff > 0 ? `▲${diff}` : `▼${Math.abs(diff)}`;
+}
+
+function computeDaysOnTop(chart: any): Map<string, number> {
+  const datasets: any[] = chart.data.datasets ?? [];
+  const labels: string[] = chart.data.labels ?? [];
+
+  const wins = new Map<string, number>();
+  for (const d of datasets) {
+    wins.set((d.label ?? "").trim().toLowerCase(), 0);
+  }
+
+  for (let day = 0; day < labels.length; day++) {
+    let topUsername: string | null = null;
+    let topValue = 0;
+
+    for (const d of datasets) {
+      const value = extractPointValue(d.data?.[day]);
+      if (value > topValue) {
+        topValue = value;
+        topUsername = (d.label ?? "").trim().toLowerCase();
+      }
+    }
+
+    if (topUsername && topValue > 0) {
+      wins.set(topUsername, (wins.get(topUsername) ?? 0) + 1);
+    }
+  }
+
+  return wins;
 }
