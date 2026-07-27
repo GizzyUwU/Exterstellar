@@ -41,6 +41,33 @@ const SIDEBAR_CSS = `
     border-right: 2px solid var(--color-space-surface-faint) !important;
     padding-inline: 10px;
     padding-right: 26px;
+    width: max-content !important;
+    min-width: 220px;
+    max-width: 340px;
+  }
+
+  .sidebar__nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-space-surface-faint) transparent;
+  }
+
+  .sidebar__nav::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .sidebar__nav::-webkit-scrollbar-thumb {
+    background: var(--color-space-surface-faint);
+    border-radius: 10px;
+  }
+
+  .sidebar__nav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 0;
   }
 
   .sidebar__logo {
@@ -52,13 +79,6 @@ const SIDEBAR_CSS = `
   .sidebar__logo-img {
     width: 142px;
     height: auto;
-  }
-    
-  .sidebar__nav-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 12px 0;
   }
 
   .sidebar__nav-link,
@@ -156,6 +176,7 @@ const SIDEBAR_CSS = `
     letter-spacing: 0.01em;
     text-transform: capitalize;
     transition: font-size 200ms;
+    white-space: nowrap;
   }
 
   .sidebar__nav-link:hover:not([aria-disabled="true"]) .sidebar__nav-label {
