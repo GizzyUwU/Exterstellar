@@ -265,7 +265,8 @@ function injectSearchBar(
   form: Element,
   cfg: Record<string, string | number | boolean>,
 ) {
-  if (form.previousElementSibling?.id === "exterstellar-better-goi-search") return;
+  if (form.previousElementSibling?.id === "exterstellar-better-goi-search")
+    return;
 
   const wrapper = document.createElement("div");
   wrapper.id = "exterstellar-better-goi-search";
@@ -297,7 +298,9 @@ function handleQueuePage(cfg: Record<string, string | number | boolean>) {
   const form = document.querySelector("form.ysws-queue__filters");
   if (form) injectSearchBar(form, cfg);
 
-  const search = document.getElementById("exterstellar-better-goi-search-input") as HTMLInputElement | null;
+  const search = document.getElementById(
+    "exterstellar-better-goi-search-input",
+  ) as HTMLInputElement | null;
   if (search?.value) filterTable(search.value, cfg);
 }
 
@@ -1106,9 +1109,7 @@ async function injectWeeklyStat(goalEl: Element) {
 
   const wrapper = document.createElement("div");
   wrapper.id = WEEK_STAT_ID;
-  wrapper.classList.add(
-    "exterstellar-better-goi-week-stat",
-  );
+  wrapper.classList.add("exterstellar-better-goi-week-stat");
   wrapper.setAttribute("role", "status");
   wrapper.setAttribute("aria-live", "polite");
 
@@ -1152,9 +1153,7 @@ const WEEKLY_COL_MARKER_ATTR = "data-exterstellar-weekly-col";
 function getUsernameFromLeaderboardRow(
   row: HTMLTableRowElement,
 ): string | null {
-  const link = row.querySelector<HTMLAnchorElement>(
-    "a[href^='/admin/users/']",
-  );
+  const link = row.querySelector<HTMLAnchorElement>("a[href^='/admin/users/']");
   const text = link?.textContent?.trim() ?? "";
   return text ? text.toLowerCase() : null;
 }
@@ -1192,7 +1191,9 @@ async function injectWeeklyLeaderboardColumn(
   const now = new Date();
   const labels: string[] = chart.data.labels ?? [];
   const cutoffIndex = Math.max(0, labels.length - 7);
-  const priorRanks = showRankChange ? computeRanksAtCutoff(chart, cutoffIndex) : null;
+  const priorRanks = showRankChange
+    ? computeRanksAtCutoff(chart, cutoffIndex)
+    : null;
 
   const rows = Array.from(
     table.querySelectorAll("tbody tr"),
@@ -1201,7 +1202,9 @@ async function injectWeeklyLeaderboardColumn(
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!;
     const username = getUsernameFromLeaderboardRow(row);
-    const count = username ? await computeWeeklyCountForUsername(chart, username, now) : null;
+    const count = username
+      ? await computeWeeklyCountForUsername(chart, username, now)
+      : null;
 
     const td = document.createElement("td");
     td.classList.add("ysws-dashboard__col-num");
@@ -1221,17 +1224,18 @@ async function injectWeeklyLeaderboardColumn(
 
 function handleWeeklyLeaderboardColumn(
   cfg: Record<string, string | number | boolean>,
-) {
+): Promise<void> {
   if (
     cfg.weeklyLeaderboardColumn === false ||
     cfg.weeklyLeaderboardColumn === "false"
   )
-    return;
+    return Promise.resolve();
 
   const table = document.querySelector<HTMLTableElement>(
     ".ysws-dashboard__table",
   );
-  if (table) injectWeeklyLeaderboardColumn(table, cfg);
+  if (!table) return Promise.resolve();
+  return injectWeeklyLeaderboardColumn(table, cfg);
 }
 
 // LB filters
@@ -1260,10 +1264,7 @@ function clearSortIndicators(headRow: HTMLTableRowElement) {
   }
 }
 
-function markSortIndicator(
-  th: HTMLTableCellElement,
-  direction: SortDirection,
-) {
+function markSortIndicator(th: HTMLTableCellElement, direction: SortDirection) {
   th.setAttribute(
     "aria-sort",
     direction === "asc" ? "ascending" : "descending",
@@ -1316,7 +1317,7 @@ function makeColumnSortable(
   columnIndex: number,
 ) {
   if (th.classList.contains(SORTABLE_TH_CLASS)) return;
-
+  const columnLabel = th.textContent?.trim() ?? "";
   th.classList.add(SORTABLE_TH_CLASS);
   th.setAttribute("tabindex", "0");
   th.setAttribute("role", "button");
@@ -1329,6 +1330,15 @@ function makeColumnSortable(
     th.dataset.sortDir = nextDir;
     markSortIndicator(th, nextDir);
     sortLeaderboardTable(table, columnIndex, nextDir);
+    try {
+      localStorage.setItem(
+        "exterstellar-better-goi-lb-sort",
+        JSON.stringify({
+          column: columnLabel,
+          dir: nextDir,
+        }),
+      );
+    } catch (e) {}
   };
 
   th.addEventListener("click", activate);
@@ -1340,19 +1350,63 @@ function makeColumnSortable(
   });
 }
 
-function initLeaderboardSorting(table: HTMLTableElement) {
-  const headRow = table.querySelector(
-    "thead tr",
-  ) as HTMLTableRowElement | null;
-  if (!headRow) return;
+function loadLeaderboardSortState(): {
+  column: string;
+  dir: SortDirection;
+} | null {
+  try {
+    const raw = localStorage.getItem("exterstellar-better-goi-lb-sort");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      typeof parsed.column === "string" &&
+      (parsed.dir === "asc" || parsed.dir === "desc")
+    ) {
+      return parsed as { column: string; dir: SortDirection };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
+function restoreLeaderboardSort(
+  table: HTMLTableElement,
+  headRow: HTMLTableRowElement,
+) {
+  const ths = Array.from(
+    headRow.querySelectorAll("th"),
+  ) as HTMLTableCellElement[];
+
+  if (ths.some((th) => th.dataset.sortDir)) return;
+  const saved = loadLeaderboardSortState();
+  if (!saved) return;
+
+  const index = ths.findIndex(
+    (th) =>
+      th.classList.contains(SORTABLE_TH_CLASS) &&
+      (th.textContent ?? "").trim() === saved.column,
+  );
+  if (index === -1) return;
+  console.log("aaa")
+
+  const th = ths[index]!;
+  clearSortIndicators(headRow);
+  th.dataset.sortDir = saved.dir;
+  markSortIndicator(th, saved.dir);
+  sortLeaderboardTable(table, index, saved.dir);
+}
+
+function makeAllNumericColumnsSortable(
+  table: HTMLTableElement,
+  headRow: HTMLTableRowElement,
+) {
   const ths = Array.from(headRow.querySelectorAll("th"));
   ths.forEach((th, index) => {
     if (!th.classList.contains(NUMERIC_COL_CLASS)) return;
     makeColumnSortable(table, headRow, th as HTMLTableCellElement, index);
   });
-
-  observeLeaderboardHeader(table, headRow);
 }
 
 function observeLeaderboardHeader(
@@ -1363,9 +1417,33 @@ function observeLeaderboardHeader(
   table.setAttribute(LEADERBOARD_SORT_INIT_ATTR, "1");
 
   const observer = new MutationObserver(() => {
-    initLeaderboardSorting(table);
+    makeAllNumericColumnsSortable(table, headRow); 
   });
   observer.observe(headRow, { childList: true });
+}
+
+
+function initLeaderboardSorting(table: HTMLTableElement) {
+  const headRow = table.querySelector("thead tr") as HTMLTableRowElement | null;
+  if (!headRow) return;
+
+  makeAllNumericColumnsSortable(table, headRow);
+  observeLeaderboardHeader(table, headRow);
+}
+
+function finalizeLeaderboardSortRestore(
+  cfg: Record<string, string | number | boolean>,
+) {
+  if (cfg.leaderboardSorting === false || cfg.leaderboardSorting === "false")
+    return;
+
+  const table = document.querySelector<HTMLTableElement>(
+    ".ysws-dashboard__table",
+  );
+  const headRow = table?.querySelector("thead tr") as
+    | HTMLTableRowElement
+    | null;
+  if (table && headRow) restoreLeaderboardSort(table, headRow);
 }
 
 function handleLeaderboardSorting(
@@ -1486,8 +1564,10 @@ Exterstellar.register({
         handleChartControls(cfg);
         handleRandomProject(cfg);
         handleWeeklyStat(cfg);
-        handleWeeklyLeaderboardColumn(cfg);
         handleLeaderboardSorting(cfg);
+        handleWeeklyLeaderboardColumn(cfg).then(() =>
+          finalizeLeaderboardSortRestore(cfg),
+        );
       }
       if (isReviewDetailPage()) {
         handleReviewDetailPage(cfg);
@@ -1506,12 +1586,14 @@ Exterstellar.register({
       document.removeEventListener("turbo:load", onTurboUpdate);
       document.removeEventListener("turbo:frame-load", onTurboUpdate);
       document.getElementById("exterstellar-better-goi-search")?.remove();
-      document.getElementById("exterstellar-better-goi-chart-controls")?.remove();
+      document
+        .getElementById("exterstellar-better-goi-chart-controls")
+        ?.remove();
     };
   },
 });
 
-// sabio's code (IF YOU TOUCH THIS I WILL FIND YOU)
+// sabio's stinky code (IF YOU TOUCH THIS I WILL FIND YOU - I touched the comment :3)
 // rank overtaking visual thingy idk
 
 function sumSeriesBeforeCutoff(data: any[], cutoffIndex: number): number {
@@ -1522,7 +1604,10 @@ function sumSeriesBeforeCutoff(data: any[], cutoffIndex: number): number {
   return total;
 }
 
-function computeRanksAtCutoff(chart: any, cutoffIndex: number): Map<string, number> {
+function computeRanksAtCutoff(
+  chart: any,
+  cutoffIndex: number,
+): Map<string, number> {
   const datasets: any[] = chart.data.datasets ?? [];
 
   const totals = datasets.map((d) => ({
@@ -1537,7 +1622,10 @@ function computeRanksAtCutoff(chart: any, cutoffIndex: number): Map<string, numb
   return ranks;
 }
 
-function formatRankChange(current: number, previous: number | undefined): string {
+function formatRankChange(
+  current: number,
+  previous: number | undefined,
+): string {
   if (previous === undefined) return "New";
 
   const diff = previous - current;
