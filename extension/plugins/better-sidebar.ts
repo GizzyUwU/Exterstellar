@@ -199,6 +199,46 @@ const SIDEBAR_CSS = `
   .sidebar__nav-notify-dot {
     margin-left: auto;
   }
+
+  @media (max-width: 1030px) {
+    .sidebar {
+      width: max-content !important;
+      min-width: 0;
+      padding: 0;
+      padding-right: 16px;
+    }
+
+    .sidebar__nav-label {
+      display: none;
+    }
+
+    .sidebar__nav-link {
+      justify-content: center;
+      gap: 0;
+    }
+
+    .sidebar__nav-lock,
+    .sidebar__nav-notify-dot {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      margin-left: 0;
+    }
+
+    .sidebar__logo,
+    .sidebar__user-handle-row,
+    .sidebar__user-actions {
+      display: none;
+    }
+
+    .sidebar__user-actions {
+      margin-left: 0;
+    }
+
+    .sidebar__user-balance {
+      margin-top: 0;
+    }
+  }
 `;
 
 if (sessionStorage.getItem("_ext_better-sidebar_pre") === "1") {
