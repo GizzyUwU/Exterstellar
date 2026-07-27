@@ -1215,7 +1215,6 @@ function handleWeeklyLeaderboardColumn(
 }
 
 // LB filters
-// Leaderboard table sorting (independent of any specific column)
 const LEADERBOARD_SORT_INIT_ATTR = "data-exterstellar-lb-sort-init";
 const SORTABLE_TH_CLASS = "exterstellar-better-goi-sortable-th";
 const SORT_INDICATOR_CLASS = "exterstellar-better-goi-sort-indicator";
