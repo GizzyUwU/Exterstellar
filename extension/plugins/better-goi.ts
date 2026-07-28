@@ -1122,6 +1122,17 @@ const GOI_CSS = `
   .exterstellar-better-goi-replay-active tr {
     transition: transform 0.3s ease;
   }
+
+  .exterstellar-better-goi-week-stats {
+  display: flex;
+  align-items: baseline;
+  align-self: flex-end;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-s);
+  background: var(--color-set-1-bg);
+  border: 2px solid var(--color-set-1-fg-secondary);
+  border-radius: var(--profile-radius);
+  }
 `;
 
 // User weekly devlogs
@@ -1201,14 +1212,28 @@ async function computeMyWeeklyDevlogCount(): Promise<number | null> {
   return computeWeeklyCountForUsername(chart, username, new Date());
 }
 
-const WEEK_STAT_ID = "exterstellar-better-goi-week-stat";
+function getWeeklyProjectsReviewed(): number {
+  const currentMonday = getMondayKey();
+  const storedMonday = localStorage.getItem(
+    "exterstellar-better-goi-projects-reviewed-this-week-start",
+  );
+  if (storedMonday !== currentMonday) return 0;
+  return (
+    parseInt(
+      localStorage.getItem(
+        "exterstellar-better-goi-projects-reviewed-this-week",
+      ) ?? "0",
+      10,
+    ) || 0
+  );
+}
 
 async function injectWeeklyStat(goalEl: Element) {
-  if (document.getElementById(WEEK_STAT_ID)) return;
+  if (document.getElementById("exterstellar-better-goi-week-stats")) return;
 
   const wrapper = document.createElement("div");
-  wrapper.id = WEEK_STAT_ID;
-  wrapper.classList.add("exterstellar-better-goi-week-stat");
+  wrapper.id = "exterstellar-better-goi-week-stats";
+  wrapper.classList.add("exterstellar-better-goi-week-stats");
   wrapper.setAttribute("role", "status");
   wrapper.setAttribute("aria-live", "polite");
 
@@ -1225,12 +1250,19 @@ async function injectWeeklyStat(goalEl: Element) {
     return;
   }
 
-  span.textContent = `You've reviewed ${count} devlog${count === 1 ? "" : "s"} this week`;
+  const weeklyProjsReviewed = getWeeklyProjectsReviewed();
+  const devlogText = `You've reviewed ${count} devlog${count === 1 ? "" : "s"} this week!`;
+  const projsText =
+    weeklyProjsReviewed > 0
+      ? ` That's over ${weeklyProjsReviewed} project${weeklyProjsReviewed === 1 ? "" : "s"}!`
+      : "";
+
+     span.textContent = `${devlogText}${projsText}`;
 }
 
 function handleWeeklyStat(cfg: Record<string, string | number | boolean>) {
   if (cfg.weeklyStat === false || cfg.weeklyStat === "false") return;
-  if (document.getElementById(WEEK_STAT_ID)) return;
+  if (document.getElementById("exterstellar-better-goi-week-stats")) return;
 
   let attempts = 0;
   const tryInject = () => {
@@ -1247,8 +1279,6 @@ function handleWeeklyStat(cfg: Record<string, string | number | boolean>) {
 }
 
 // Weekly stats on lb
-const WEEKLY_COL_MARKER_ATTR = "data-exterstellar-weekly-col";
-
 function getUsernameFromLeaderboardRow(
   row: HTMLTableRowElement,
 ): string | null {
@@ -1261,8 +1291,8 @@ async function injectWeeklyLeaderboardColumn(
   table: HTMLTableElement,
   cfg: Record<string, string | number | boolean>,
 ) {
-  if (table.hasAttribute(WEEKLY_COL_MARKER_ATTR)) return;
-  table.setAttribute(WEEKLY_COL_MARKER_ATTR, "1");
+  if (table.hasAttribute("data-exterstellar-weekly-col")) return;
+  table.setAttribute("data-exterstellar-weekly-col", "1");
 
   const found = findReviewerChartElements();
   if (!found) return;
@@ -1290,7 +1320,7 @@ async function injectWeeklyLeaderboardColumn(
 
     if (showDaysOnTop) {
       const daysOnTopTh = document.createElement("th");
-      daysOnTopTh.classList.add("ysws-dashboard__col-num", SORTABLE_TH_CLASS);
+      daysOnTopTh.classList.add("ysws-dashboard__col-num", "exterstellar-better-goi-sortable-th");
       daysOnTopTh.textContent = "Days on top";
       headRow.appendChild(daysOnTopTh);
     }
@@ -1359,12 +1389,6 @@ function handleWeeklyLeaderboardColumn(
 }
 
 // LB filters
-const LEADERBOARD_SORT_INIT_ATTR = "data-exterstellar-lb-sort-init";
-const SORTABLE_TH_CLASS = "exterstellar-better-goi-sortable-th";
-const SORT_INDICATOR_CLASS = "exterstellar-better-goi-sort-indicator";
-const NUMERIC_COL_CLASS = "ysws-dashboard__col-num";
-const RANK_COL_CLASS = "ysws-dashboard__col-rank";
-
 type SortDirection = "asc" | "desc";
 
 function parseNumericCellValue(td: HTMLTableCellElement | null): number {
@@ -1386,12 +1410,12 @@ function parseNumericCellValue(td: HTMLTableCellElement | null): number {
 
 function clearSortIndicators(headRow: HTMLTableRowElement) {
   const sortableThs = headRow.querySelectorAll<HTMLTableCellElement>(
-    `.${SORTABLE_TH_CLASS}`,
+    `.exterstellar-better-goi-sortable-th`,
   );
   for (const th of Array.from(sortableThs)) {
     th.removeAttribute("aria-sort");
     delete th.dataset.sortDir;
-    th.querySelector(`.${SORT_INDICATOR_CLASS}`)?.remove();
+    th.querySelector(`.${"exterstellar-better-goi-sort-indicator"}`)?.remove();
   }
 }
 
@@ -1401,7 +1425,7 @@ function markSortIndicator(th: HTMLTableCellElement, direction: SortDirection) {
     direction === "asc" ? "ascending" : "descending",
   );
   const indicator = document.createElement("span");
-  indicator.classList.add(SORT_INDICATOR_CLASS);
+  indicator.classList.add("exterstellar-better-goi-sort-indicator");
   indicator.textContent = direction === "asc" ? " ▲" : " ▼";
   th.appendChild(indicator);
 }
@@ -1434,7 +1458,7 @@ function sortLeaderboardTable(
   }
 
   const rankCells = Array.from(
-    tbody.querySelectorAll(`tr > td.${RANK_COL_CLASS}`),
+    tbody.querySelectorAll(`tr > td.ysws-dashboard__col-rank`),
   ) as HTMLTableCellElement[];
   rankCells.forEach((cell, i) => {
     cell.textContent = String(i + 1);
@@ -1447,9 +1471,9 @@ function makeColumnSortable(
   th: HTMLTableCellElement,
   columnIndex: number,
 ) {
-  if (th.classList.contains(SORTABLE_TH_CLASS)) return;
+  if (th.classList.contains("exterstellar-better-goi-sortable-th")) return;
   const columnLabel = th.textContent?.trim() ?? "";
-  th.classList.add(SORTABLE_TH_CLASS);
+  th.classList.add("exterstellar-better-goi-sortable-th");
   th.setAttribute("tabindex", "0");
   th.setAttribute("role", "button");
 
@@ -1516,7 +1540,7 @@ function restoreLeaderboardSort(
 
   const index = ths.findIndex(
     (th) =>
-      th.classList.contains(SORTABLE_TH_CLASS) &&
+      th.classList.contains("exterstellar-better-goi-sortable-th") &&
       (th.textContent ?? "").trim() === saved.column,
   );
   if (index === -1) return;
@@ -1534,7 +1558,7 @@ function makeAllNumericColumnsSortable(
 ) {
   const ths = Array.from(headRow.querySelectorAll("th"));
   ths.forEach((th, index) => {
-    if (!th.classList.contains(NUMERIC_COL_CLASS)) return;
+    if (!th.classList.contains("ysws-dashboard__col-num")) return;
     makeColumnSortable(table, headRow, th as HTMLTableCellElement, index);
   });
 }
@@ -1543,8 +1567,8 @@ function observeLeaderboardHeader(
   table: HTMLTableElement,
   headRow: HTMLTableRowElement,
 ) {
-  if (table.hasAttribute(LEADERBOARD_SORT_INIT_ATTR)) return;
-  table.setAttribute(LEADERBOARD_SORT_INIT_ATTR, "1");
+  if (table.hasAttribute("data-exterstellar-lb-sort-init")) return;
+  table.setAttribute("data-exterstellar-lb-sort-init", "1");
 
   const observer = new MutationObserver(() => {
     makeAllNumericColumnsSortable(table, headRow);
@@ -1679,6 +1703,90 @@ function handleApproveAllMissingVerdict(
   });
 }
 
+// Count projects reviewed
+function getMondayKey(d = new Date()): string {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  date.setDate(date.getDate() + diff);
+  date.setHours(0, 0, 0, 0);
+  return date.toISOString().slice(0, 10);
+}
+
+function incrementReviewCounters() {
+  const total =
+    parseInt(
+      localStorage.getItem("exterstellar-better-goi-projects-reviewed") ?? "0",
+      10,
+    ) || 0;
+  localStorage.setItem(
+    "exterstellar-better-goi-projects-reviewed",
+    String(total + 1),
+  );
+
+  const currentMonday = getMondayKey();
+  const storedMonday = localStorage.getItem(
+    "exterstellar-better-goi-projects-reviewed-this-week-start",
+  );
+
+  let weekTotal =
+    parseInt(
+      localStorage.getItem(
+        "exterstellar-better-goi-projects-reviewed-this-week",
+      ) ?? "0",
+      10,
+    ) || 0;
+  if (storedMonday !== currentMonday) {
+    weekTotal = 0;
+    localStorage.setItem(
+      "exterstellar-better-goi-projects-reviewed-this-week-start",
+      currentMonday,
+    );
+  }
+  localStorage.setItem(
+    "exterstellar-better-goi-projects-reviewed-this-week",
+    String(weekTotal + 1),
+  );
+}
+
+async function handleIncremationProjectReviewed(
+  cfg: Record<string, string | number | boolean>,
+  isReviewPage: boolean,
+  isQueuePage: boolean,
+) {
+  if (
+    cfg.projectsReviewedCounter === false ||
+    cfg.projectsReviewedCounter === "false"
+  )
+    return;
+  if (isReviewPage) {
+    const completeReviewBtn = document.querySelector<HTMLButtonElement>(
+      '[data-certification--ysws--complete-review-target="button"]',
+    );
+    completeReviewBtn?.addEventListener("click", incrementReviewCounters);
+  } else if (isQueuePage) {
+    if (document.getElementById("exterstellar-better-goi-projects-reviewed"))
+      return;
+    const projsReviewed =
+      Number(
+        localStorage.getItem("exterstellar-better-goi-projects-reviewed"),
+      ) ?? 0;
+    if (projsReviewed === 0) return;
+    const goalEl = document.querySelector(".ysws-queue__goal");
+    const wrapper = document.createElement("div");
+    wrapper.id = "exterstellar-better-goi-projects-reviewed";
+    wrapper.classList.add("exterstellar-better-goi-week-stats");
+    wrapper.setAttribute("role", "status");
+    wrapper.setAttribute("aria-live", "polite");
+    const span = document.createElement("span");
+    span.classList.add("ysws-queue__goal-label");
+    span.textContent = `You've reviewed ${projsReviewed} project${projsReviewed === 1 ? "" : "s"}!`;
+    wrapper.appendChild(span);
+    goalEl!.after(wrapper);
+  }
+}
+
+
 if (sessionStorage.getItem("_ext_better-goi_pre") === "1") {
   const pre = document.createElement("style");
   pre.id = "exterstellar-better-goi";
@@ -1796,6 +1904,13 @@ Exterstellar.register({
       type: "checkbox",
       default: true,
     },
+    {
+      key: "projectsReviewedCounter",
+      label:
+        "Show the projects you have reviewed since plugin enabled and weekly projects reviewed!",
+      type: "checkbox",
+      default: true,
+    },
   ],
   start() {
     const cfg = Exterstellar.getConfig("better-goi");
@@ -1842,6 +1957,7 @@ Exterstellar.register({
         handleApproveAllMissingVerdict(cfg);
         handleSidebarToggleHotkey(cfg);
       }
+      handleIncremationProjectReviewed(cfg, isReviewDetailPage(), isQueueListPage())
     };
 
     document.addEventListener("turbo:load", onTurboUpdate);
@@ -1973,16 +2089,14 @@ interface LeaderboardStanding {
 function getLeaderboardStandings(
   table: HTMLTableElement,
 ): LeaderboardStanding[] {
-  const rows = Array.from(
-    table.querySelectorAll("tbody tr"),
-  ) as HTMLTableRowElement[];
-
-  return rows.map((row) => {
+  const rows = Array.from(table.querySelectorAll("tbody tr")) as HTMLTableRowElement[];
+  const standings = rows.map((row) => {
     const username = getUsernameFromLeaderboardRow(row) ?? "";
     const totalCell = row.querySelectorAll("td")[2] ?? null;
     const total = parseNumericCellValue(totalCell);
     return { username, total };
   });
+  return standings.sort((a, b) => b.total - a.total);
 }
 
 function computePersonalStanding(
@@ -2102,7 +2216,7 @@ function highlightLeaderboardColumns(table: HTMLTableElement) {
   ) as HTMLTableRowElement[];
 
   ths.forEach((th, columnIndex) => {
-    if (!th.classList.contains(NUMERIC_COL_CLASS)) return;
+    if (!th.classList.contains("ysws-dashboard__col-num")) return;
     const label = th.textContent?.replace(/[▲▼]\s*\d*$/, "").trim() ?? "";
 
     if (label === "Past 7 days") {
@@ -2189,7 +2303,7 @@ function reorderRowsByRank(
   }
 
   const rankCells = Array.from(
-    tbody.querySelectorAll(`tr > td.${RANK_COL_CLASS}`),
+    tbody.querySelectorAll(`tr > td.ysws-dashboard__col-rank`),
   ) as HTMLTableCellElement[];
   rankCells.forEach((cell, i) => {
     cell.textContent = String(i + 1);
