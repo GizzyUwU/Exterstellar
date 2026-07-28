@@ -1106,6 +1106,22 @@ const GOI_CSS = `
     color: var(--color-brand-highlight) !important;
     font-weight: 700;
   }
+
+  .exterstellar-better-goi-replay-wrapper {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    margin: 8px 0 12px;
+  }
+
+  .exterstellar-better-goi-replay-date {
+    color: var(--color-space-text-muted);
+    font-size: var(--font-size-s);
+  }
+
+  .exterstellar-better-goi-replay-active tr {
+    transition: transform 0.3s ease;
+  }
 `;
 
 // User weekly devlogs
@@ -1504,7 +1520,6 @@ function restoreLeaderboardSort(
       (th.textContent ?? "").trim() === saved.column,
   );
   if (index === -1) return;
-  console.log("aaa");
 
   const th = ths[index]!;
   clearSortIndicators(headRow);
@@ -1775,6 +1790,12 @@ Exterstellar.register({
       type: "checkbox",
       default: true,
     },
+    {
+      key: "leaderboardReplay",
+      label: "Show a button to replay leaderboard rank changes over time",
+      type: "checkbox",
+      default: true,
+    },
   ],
   start() {
     const cfg = Exterstellar.getConfig("better-goi");
@@ -1811,6 +1832,7 @@ Exterstellar.register({
         handleWeeklyLeaderboardColumn(cfg).then(() => {
           finalizeLeaderboardSortRestore(cfg);
           handlePersonalStanding(cfg);
+          handleLeaderboardReplay(cfg);
         });
       }
       if (isReviewDetailPage()) {
@@ -2109,4 +2131,154 @@ function highlightLeaderboardColumns(table: HTMLTableElement) {
       topCell.classList.add("exterstellar-better-goi-top-value");
     }
   });
+}
+
+let replayInProgress = false;
+
+function computeCumulativeStateForDay(
+  chart: any,
+  dayIndex: number,
+): { ranks: Map<string, number>; totals: Map<string, number> } {
+  const datasets: any[] = chart.data.datasets ?? [];
+  const cutoffIndex = dayIndex + 1;
+
+  const entries = datasets.map((d) => ({
+    username: (d.label ?? "").trim().toLowerCase(),
+    total: sumSeriesBeforeCutoff(d.data ?? [], cutoffIndex),
+  }));
+
+  entries.sort((a, b) => b.total - a.total);
+
+  const ranks = new Map<string, number>();
+  const totals = new Map<string, number>();
+  entries.forEach((e, i) => {
+    ranks.set(e.username, i + 1);
+    totals.set(e.username, e.total);
+  });
+
+  return {ranks, totals};
+}
+
+function reorderRowsByRank(
+  table: HTMLTableElement,
+  ranks: Map<string, number>,
+  totals: Map<string, number>,
+) {
+  const tbody = table.querySelector("tbody");
+  if (!tbody) return;
+
+  const rows = Array.from(tbody.querySelectorAll("tr")) as HTMLTableRowElement[];
+
+  const ordered = rows
+    .map((row) => {
+      const username = getUsernameFromLeaderboardRow(row);
+      return {
+        row,
+        username,
+        rank: username ? (ranks.get(username) ?? Infinity) : Infinity,
+      };
+    })
+    .sort((a, b) => a.rank - b.rank);
+
+  for (const { row, username } of ordered) {
+    tbody.appendChild(row);
+    const devlogsCell = row.querySelectorAll("td")[2];
+    if (devlogsCell && username) {
+      devlogsCell.textContent = String(totals.get(username) ?? 0);
+    }
+  }
+
+  const rankCells = Array.from(
+    tbody.querySelectorAll(`tr > td.${RANK_COL_CLASS}`),
+  ) as HTMLTableCellElement[];
+  rankCells.forEach((cell, i) => {
+    cell.textContent = String(i + 1);
+  });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function playLeaderboardReplay(
+  table: HTMLTableElement,
+  chart: any,
+  dateLabel: HTMLElement,
+) {
+  if (replayInProgress) return;
+  replayInProgress = true;
+
+  const labels: string[] = chart.data.labels ?? [];
+  const tbody = table.querySelector("tbody");
+  tbody?.classList.add("exterstellar-better-goi-replay-active");
+
+  const rows = Array.from(tbody?.querySelectorAll("tr") ?? []) as HTMLTableRowElement[];
+  const originalDevlogsText = new Map<HTMLTableRowElement, string>();
+  for (const row of rows) {
+    const cell = row.querySelectorAll("td")[2];
+    originalDevlogsText.set(row, cell?.textContent ?? "0");
+  }
+
+  try {
+    for (let day = 0; day < labels.length; day++) {
+      const { ranks, totals } = computeCumulativeStateForDay(chart, day);
+      reorderRowsByRank(table, ranks, totals);
+      dateLabel.textContent = labels[day] ?? "";
+      await sleep(400);
+    }
+  } finally {
+    for (const [row, text] of originalDevlogsText) {
+      const cell = row.querySelectorAll("td")[2];
+      if (cell) cell.textContent = text;
+    }
+    tbody?.classList.remove("exterstellar-better-goi-replay-active");
+    dateLabel.textContent = "";
+    replayInProgress = false;
+    finalizeLeaderboardSortRestore(Exterstellar.getConfig("better-goi"));
+  }
+}
+
+function injectReplayButton(headingEl: Element, table: HTMLTableElement) {
+  if (document.getElementById("exterstellar-better-goi-replay-btn")) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.classList.add("exterstellar-better-goi-replay-wrapper");
+
+  const button = document.createElement("button");
+  button.id = "exterstellar-better-goi-replay-btn";
+  button.type = "button";
+  button.textContent = "Play replay :3";
+  button.classList.add("exterstellar-better-goi-chart-button");
+
+  const dateLabel = document.createElement("span");
+  dateLabel.classList.add("exterstellar-better-goi-replay-date");
+
+  button.addEventListener("click", async () => {
+    if (replayInProgress) return;
+    const found = findReviewerChartElements();
+    if (!found) return;
+    const chart = await getChartInstance(found.canvas);
+    if (!chart) return;
+    playLeaderboardReplay(table, chart, dateLabel);
+  });
+
+  wrapper.appendChild(button);
+  wrapper.appendChild(dateLabel);
+  headingEl.insertAdjacentElement("afterend", wrapper);
+}
+
+function handleLeaderboardReplay(
+  cfg: Record<string, string | number | boolean>,
+) {
+  if (cfg.leaderboardReplay === false || cfg.leaderboardReplay === "false")
+    return;
+  if (document.getElementById("exterstellar-better-goi-replay-btn")) return;
+
+  const heading = document.querySelector(
+    ".ysws-dashboard__panel--leaderboard .ysws-dashboard__heading",
+  );
+  const table = document.querySelector<HTMLTableElement>(
+    ".ysws-dashboard__table",
+  );
+  if (heading && table) injectReplayButton(heading, table);
 }
