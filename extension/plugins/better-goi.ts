@@ -1012,43 +1012,50 @@ const GOI_CSS = `
   }
 
   .exterstellar-better-goi-commits-window-btn:disabled {
-      opacity: .6;
-      cursor: not-allowed;
+    opacity: .6;
+    cursor: not-allowed;
   }
 
   .exterstellar-random-project-btn {
-      display: inline-flex;
-      align-items: center;
-      align-self: flex-end;
-      padding: .375rem .75rem;
-      min-height: 2rem;
-      padding-inline: var(--space-s);
-      background: var(--color-set-1-bg);
-      border: 2px solid var(--color-set-1-fg-secondary);
-      border-radius: var(--profile-radius);
-      color: var(--color-space-text) !important;
-      font-size: var(--font-size-s);
-      font-weight: 700;
-      text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-end;
+    padding: .375rem .75rem;
+    min-height: 2rem;
+    padding-inline: var(--space-s);
+    background: var(--color-set-1-bg);
+    border: 2px solid var(--color-set-1-fg-secondary);
+    border-radius: var(--profile-radius);
+    color: var(--color-space-text) !important;
+    font-size: var(--font-size-s);
+    font-weight: 700;
+    text-decoration: none;
   }
 
   .exterstellar-random-project-btn:hover {
-      background: hsla(0, 0%, 100%, .06);
-      border-color: var(--color-brand-highlight);
-      color: var(--color-brand-highlight);
-      text-decoration: none;
-      cursor: pointer;
+    background: hsla(0, 0%, 100%, .06);
+    border-color: var(--color-brand-highlight);
+    color: var(--color-brand-highlight);
+    text-decoration: none;
+    cursor: pointer;
   }
 
-  .exterstellar-better-goi-week-stat {
-      display: flex;
-      align-items: baseline;
-      align-self: flex-end;
-      gap: var(--space-xs);
-      padding: var(--space-xs) var(--space-s);
-      background: var(--color-set-1-bg);
-      border: 2px solid var(--color-set-1-fg-secondary);
-      border-radius: var(--profile-radius);
+  .ysws-dashboard__panel--chart {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .exterstellar-better-goi-standing-group {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-s);
+    background: var(--color-set-1-bg);
+    border: 2px solid var(--color-set-1-fg-secondary);
+    border-radius: var(--profile-radius);
+    margin-top: auto;
+    margin-bottom: 16px;
+    height: max-content;
   }
 
   .exterstellar-better-goi-sortable-th {
@@ -1083,27 +1090,11 @@ const GOI_CSS = `
     display: inline-block;
   }
 
-  .ysws-dashboard {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(5, 1fr);
-  }
-
-  .ysws-dashboard__panel--leaderboard {
-    grid-row: span 5 / span 5;
-  }
-
-  .ysws-dashboard__panel--chart {
-    grid-row: span 4 / span 4;
-  }
-
   #exterstellar-better-goi-personal-standing {
     display: flex;
     flex-direction: column;
-    flex-basis: 50%;
     justify-content: flex-end;
     gap: 8px;
-    grid-column-start: 2;
-    grid-row-start: 5;
   }
 
   .exterstellar-better-goi-top-value {
@@ -1362,6 +1353,17 @@ type SortDirection = "asc" | "desc";
 
 function parseNumericCellValue(td: HTMLTableCellElement | null): number {
   const raw = (td?.textContent ?? "").replace(/,/g, "").trim();
+
+  if (raw === "-" || raw === "New") return 0;
+  if (raw.startsWith("▲")) {
+    const n = parseFloat(raw.slice(1));
+    return Number.isNaN(n) ? -Infinity : n;
+  }
+  if (raw.startsWith("▼")) {
+    const n = parseFloat(raw.slice(1));
+    return Number.isNaN(n) ? -Infinity : -n;
+  }
+
   const value = parseFloat(raw);
   return Number.isNaN(value) ? -Infinity : value;
 }
@@ -2030,7 +2032,7 @@ async function injectPersonalStanding(goalEl: Element, table: HTMLTableElement) 
     }
   }
 
-  goalEl.after(container);
+  goalEl.appendChild(container);
 }
 
 function handlePersonalStanding(
