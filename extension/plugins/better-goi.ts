@@ -1052,59 +1052,69 @@ const GOI_CSS = `
   }
 
   .exterstellar-better-goi-sortable-th {
-      cursor: pointer;
-      user-select: none;
-    }
+    cursor: pointer;
+    user-select: none;
+  }
 
-    .exterstellar-better-goi-sortable-th:hover {
-      color: var(--color-brand-highlight);
-    }
+  .exterstellar-better-goi-sortable-th:hover {
+    color: var(--color-brand-highlight);
+  }
 
-    .exterstellar-better-goi-sort-indicator {
-      font-size: 0.75em;
-      opacity: 0.8;
-    }
+  .exterstellar-better-goi-sort-indicator {
+    font-size: 0.75em;
+    opacity: 0.8;
+  }
 
-    .exterstellar-better-goi-approve-all-link {
-      color: inherit;
-      text-decoration: underline;
-      font-weight: 600;
-      cursor: pointer;
-    }
+  .exterstellar-better-goi-approve-all-link {
+    color: inherit;
+    text-decoration: underline;
+    font-weight: 600;
+    cursor: pointer;
+  }
 
-    .exterstellar-better-goi-approve-all-link:hover {
-      opacity: 0.85;
-    }
+  .exterstellar-better-goi-approve-all-link:hover {
+    opacity: 0.85;
+  }
 
-    .exterstellar-better-goi-emoji {
-      width: 20px;
-      height: 20px;
-      vertical-align: middle;
-      display: inline-block;
-    }
+  .exterstellar-better-goi-emoji {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+    display: inline-block;
+  }
 
-    .ysws-dashboard {
-      grid-template-columns: repeat(2, 1fr);
-      grid-template-rows: repeat(5, 1fr);
-    }
+  .ysws-dashboard {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+  }
 
-    .ysws-dashboard__panel--leaderboard {
-      grid-row: span 5 / span 5;
-    }
+  .ysws-dashboard__panel--leaderboard {
+    grid-row: span 5 / span 5;
+  }
 
-    .ysws-dashboard__panel--chart {
-      grid-row: span 4 / span 4;
-    }
+  .ysws-dashboard__panel--chart {
+    grid-row: span 4 / span 4;
+  }
 
-    #exterstellar-better-goi-personal-standing {
-      display: flex;
-      flex-direction: column;
-      flex-basis: 50%;
-      justify-content: flex-end;
-      gap: 8px;
-      grid-column-start: 2;
-      grid-row-start: 5;
-    }
+  #exterstellar-better-goi-personal-standing {
+    display: flex;
+    flex-direction: column;
+    flex-basis: 50%;
+    justify-content: flex-end;
+    gap: 8px;
+    grid-column-start: 2;
+    grid-row-start: 5;
+  }
+
+  .exterstellar-better-goi-top-value {
+    color: var(--color-brand-highlight) !important;
+    font-weight: 700;
+  }
+
+  .exterstellar-better-goi-rank-gain {
+    color: var(--color-brand-highlight) !important;
+    font-weight: 700;
+  }
 `;
 
 // User weekly devlogs
@@ -1255,6 +1265,7 @@ async function injectWeeklyLeaderboardColumn(
 
   const showRankChange = cfg.rankChange !== false && cfg.rankChange !== "false";
   const showDaysOnTop = cfg.daysOnTop !== false && cfg.daysOnTop !== "false";
+  const showHighlights = cfg.leaderboardHighlights !== false && cfg.leaderboardHighlights !== "false";
 
   const headRow = table.querySelector("thead tr");
   if (headRow) {
@@ -1320,6 +1331,8 @@ async function injectWeeklyLeaderboardColumn(
       row.appendChild(daysOnTopTd);
     }
   }
+
+  if (showHighlights) highlightLeaderboardColumns(table);
 }
 
 function handleWeeklyLeaderboardColumn(
@@ -1754,6 +1767,12 @@ Exterstellar.register({
       type: "checkbox",
       default: true,
     },
+    {
+      key: "leaderboardHighlights",
+      label: "Highlight top values and rank gains on the leaderboard",
+      type: "checkbox",
+      default: true,
+    },
   ],
   start() {
     const cfg = Exterstellar.getConfig("better-goi");
@@ -2036,4 +2055,56 @@ function handlePersonalStanding(
   };
 
   tryInject();
+}
+
+function clearHighlights(table: HTMLTableElement) {
+  const highlighted = table.querySelectorAll(
+    `.exterstellar-better-goi-top-value, .exterstellar-better-goi-rank-gain`,
+  );
+  for (const cell of Array.from(highlighted)) {
+    cell.classList.remove("exterstellar-better-goi-top-value", "exterstellar-better-goi-rank-gain");
+  }
+}
+
+function highlightLeaderboardColumns(table: HTMLTableElement) {
+  const headRow = table.querySelector("thead tr");
+  if (!headRow) return;
+
+  clearHighlights(table);
+
+  const ths = Array.from(headRow.querySelectorAll("th")) as HTMLTableCellElement[];
+  const rows = Array.from(
+    table.querySelectorAll("tbody tr"),
+  ) as HTMLTableRowElement[];
+
+  ths.forEach((th, columnIndex) => {
+    if (!th.classList.contains(NUMERIC_COL_CLASS)) return;
+    const label = th.textContent?.replace(/[▲▼]\s*\d*$/, "").trim() ?? "";
+
+    if (label === "Past 7 days") {
+      for (const row of rows) {
+        const cell = row.querySelectorAll("td")[columnIndex];
+        if (cell?.textContent?.trim().startsWith("▲")) {
+          cell.classList.add("exterstellar-better-goi-rank-gain");
+        }
+      }
+      return;
+    }
+
+    let topCell: HTMLTableCellElement | null = null;
+    let topValue = -Infinity;
+
+    for (const row of rows) {
+      const cell = row.querySelectorAll("td")[columnIndex] ?? null;
+      const value = parseNumericCellValue(cell);
+      if (cell && value > topValue) {
+        topValue = value;
+        topCell = cell;
+      }
+    }
+
+    if (topCell && Number.isFinite(topValue)) {
+      topCell.classList.add("exterstellar-better-goi-top-value");
+    }
+  });
 }
