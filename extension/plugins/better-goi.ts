@@ -2012,6 +2012,68 @@ async function releaseReviewClaim(reviewId: string): Promise<void> {
   } catch (e) {}
 }
 
+interface LinkHealthCacheEntry {
+  status: number;
+  statusText: string;
+  checkedAt: number;
+}
+
+function loadLinkHealthCache(): Record<string, LinkHealthCacheEntry> {
+  try {
+    const raw = localStorage.getItem("exterstellar-better-goi-linkhealth-cache");
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveLinkHealthCache(cache: Record<string, LinkHealthCacheEntry>) {
+  try {
+    localStorage.setItem("exterstellar-better-goi-linkhealth-cache", JSON.stringify(cache));
+  } catch (e) {}
+}
+
+function getCachedLinkHealth(key: string): LinkHealthCacheEntry | null {
+  const entry = loadLinkHealthCache()[key];
+  if (!entry) return null;
+  if (Date.now() - entry.checkedAt > 24 * 60 * 60 * 1000) return null;
+  return entry;
+}
+
+function setCachedLinkHealth(
+  key: string,
+  status: number,
+  statusText: string,
+) {
+  const cache = loadLinkHealthCache();
+  cache[key] = { status, statusText, checkedAt: Date.now() };
+  saveLinkHealthCache(cache);
+}
+
+function pruneLinkHealthCache(currentReviewIds: Set<string>) {
+  const cache = loadLinkHealthCache();
+  const now = Date.now();
+  let changed = false;
+
+  for (const key of Object.keys(cache)) {
+    const entry = cache[key]!;
+    const expired = now - entry.checkedAt > 24 * 60 * 60 * 1000;
+    const gone = !currentReviewIds.has(key);
+    if (expired || (currentReviewIds.size > 0 && gone && looksLikeReviewId(key))) {
+      delete cache[key];
+      changed = true;
+    }
+  }
+
+  if (changed) saveLinkHealthCache(cache);
+}
+
+function looksLikeReviewId(key: string): boolean {
+  return /^\d+$/.test(key);
+}
+
 async function checkRowLinkHealth(row: HTMLTableRowElement) {
   if (row.hasAttribute("data-exterstellar-link-health-checked")) return;
   row.setAttribute("data-exterstellar-link-health-checked", "1");
@@ -2020,11 +2082,22 @@ async function checkRowLinkHealth(row: HTMLTableRowElement) {
   if (!link?.href) return;
 
   const reviewId = extractReviewId(link.href);
+  const cacheKey = reviewId ?? link.href;
+
+  const cached = getCachedLinkHealth(cacheKey);
+  if (cached) {
+    if (cached.status >= 400) disableBrokenLink(link, cached.status, cached.statusText);
+    return;
+  }
+
   const result = await probeLinkStatus(link.href);
 
   if (result?.status === 429) return row.removeAttribute("data-exterstellar-link-health-checked");
   if (reviewId) await releaseReviewClaim(reviewId);
   if (!result) return;
+
+  setCachedLinkHealth(cacheKey, result.status, result.statusText);
+
   if (result.status >= 400) {
     disableBrokenLink(link, result.status, result.statusText);
   }
@@ -2084,6 +2157,16 @@ function handleLinkHealthCheck(
     table.querySelectorAll("tbody tr"),
   ) as HTMLTableRowElement[];
 
+  const allReviewIds = new Set(
+    rows
+      .map((row) => {
+        const link = getActionLink(row);
+        return link?.href ? extractReviewId(link.href) : null;
+      })
+      .filter((id): id is string => !!id),
+  );
+  pruneLinkHealthCache(allReviewIds);
+  
   const firstN = rows.slice(0, 30);
 
   const pending = firstN.filter(
