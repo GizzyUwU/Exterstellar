@@ -1135,10 +1135,7 @@ const GOI_CSS = `
   }
 
   .exterstellar-better-goi-broken-link {
-    pointer-events: none;
     opacity: 0.5;
-    cursor: not-allowed;
-    text-decoration: line-through;
   }
 `;
 
@@ -1954,11 +1951,12 @@ function disableBrokenLink(
   ensureBrokenLinkClickHandler();
   if (link.classList.contains("exterstellar-better-goi-broken-link")) return;
   link.classList.add("exterstellar-better-goi-broken-link");
-  link.setAttribute("aria-disabled", "true");
+  // link.setAttribute("aria-disabled", "true");
   link.setAttribute("role", "button");
-  link.dataset.originalHref = link.href;
-  link.removeAttribute("href");
-  link.textContent = formatStatusTooltip(status, statusText);
+  // link.dataset.originalHref = link.href;
+  // link.removeAttribute("href");
+  link.title = formatStatusTooltip(status, statusText);
+  link.textContent = "Error"
 }
 
 function restoreBrokenLink(link: HTMLAnchorElement) {
