@@ -1098,7 +1098,7 @@ const GOI_CSS = `
   }
 
   .exterstellar-better-goi-top-value {
-    color: var(--color-brand-highlight);
+    color: var(--color-brand-highlight) !important;
     font-weight: 700;
   }
 
@@ -1107,11 +1107,11 @@ const GOI_CSS = `
   }
 
   .exterstellar-better-goi-rank-gain {
-    color: var(--color-brand-highlight);
+    color: var(--color-brand-highlight) !important;
     font-weight: 700;
   }
 
-  .ysws-dashboard__row--on-pace .exterstellar-better-goi-top-value {
+  .ysws-dashboard__row--on-pace .exterstellar-better-goi-rank-gain {
     color: var(--color-set-1-bg) !important;
   }
 
@@ -2172,7 +2172,7 @@ function handleLinkHealthCheck(
       .filter((id): id is string => !!id),
   );
   pruneLinkHealthCache(allReviewIds);
-  
+
   const firstN = rows.slice(0, 30);
 
   const pending = firstN.filter(
