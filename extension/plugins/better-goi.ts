@@ -1098,13 +1098,21 @@ const GOI_CSS = `
   }
 
   .exterstellar-better-goi-top-value {
-    color: var(--color-brand-highlight) !important;
+    color: var(--color-brand-highlight);
     font-weight: 700;
   }
 
+  .ysws-dashboard__row--on-pace .exterstellar-better-goi-top-value {
+    color: var(--color-set-1-bg) !important;
+  }
+
   .exterstellar-better-goi-rank-gain {
-    color: var(--color-brand-highlight) !important;
+    color: var(--color-brand-highlight);
     font-weight: 700;
+  }
+
+  .ysws-dashboard__row--on-pace .exterstellar-better-goi-top-value {
+    color: var(--color-set-1-bg) !important;
   }
 
   .exterstellar-better-goi-replay-wrapper {
@@ -1124,14 +1132,14 @@ const GOI_CSS = `
   }
 
   .exterstellar-better-goi-week-stats {
-  display: flex;
-  align-items: baseline;
-  align-self: flex-end;
-  gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-s);
-  background: var(--color-set-1-bg);
-  border: 2px solid var(--color-set-1-fg-secondary);
-  border-radius: var(--profile-radius);
+    display: flex;
+    align-items: baseline;
+    align-self: flex-end;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-s);
+    background: var(--color-set-1-bg);
+    border: 2px solid var(--color-set-1-fg-secondary);
+    border-radius: var(--profile-radius);
   }
 `;
 

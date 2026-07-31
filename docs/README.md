@@ -43,4 +43,34 @@ Then copy the static files to the newly created `dist/` folder:
 
 Plugins are the features you can toggle on and off for Exterstellar. There are many built-in ones you can choose from. The list of all the plugins is available below:
 
-(readme section coming soon)
+| Plugin Type  | No. of Plugins |
+|--------------|----------------|
+| **All**      | **16**         |
+| Official     | 14             |
+| Community    | 2              |
+
+### Better GOI
+
+**[Community Plugin] Made by Gizzy**
+
+The GOI dash you always wanted! Cuz well you know it sucks
+
+### Better Sidebar
+
+**[Official Plugin] Made by Sabio**
+
+Redesigns the sidebar to look visually better.
+
+### Custom Font
+
+**[Official Plugin] Made by Sabio**
+
+Apply a custom font across Stardance!
+
+### Devlog Changelog
+
+**[Official Plugin] Made by Sabio**
+
+Adds an 'add changelog' button that inserts your GitHub/GitLab commit history for that devlog.
+
+TODO: add the missing ones here
