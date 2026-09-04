@@ -103,6 +103,10 @@ const GOI_CSS = `
     color: var(--color-set-1-bg) !important;
   }
 
+  .ysws-dashboard__reviewer-link--on-pace {
+     color: var(--color-set-1-bg) !important;
+  }
+
   .exterstellar-better-goi-commits-window-btn:disabled {
     opacity: .6;
     cursor: not-allowed;
