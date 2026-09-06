@@ -299,6 +299,21 @@ const GOI_CSS = `
     font-family: inherit;
     font-size: 10px;
   }
+
+  .exterstellar-queue-sort-hint {
+    font-size: 12px;
+    color: var(--color-space-text-muted, rgba(255,255,255,0.6));
+    margin: 6px 0 8px;
+    padding: 6px 10px;
+    border: 1px dashed var(--color-border-input, rgba(255,255,255,0.15));
+    border-radius: 6px;
+    background: var(--color-set-2-bg, rgba(255,255,255,0.03));
+  }
+  .exterstellar-queue-sort-hint--fade {
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
+  }
 `;
 
 export default GOI_CSS;

@@ -28,6 +28,7 @@ import { handleBannedFilter } from "./modules/hideStinkyFraudsters";
 import { handleLinkPanels } from "./modules/openAllLinks";
 import { handleHardwareFilter } from "./modules/iAintNoHardwareGOI";
 import { handleProjBtnHealthCheck } from "./modules/projsBTNHealhcheck";
+import { handleQueueMultiSort } from "./modules/queueMultiSort";
 import { disconnectTrackedObservers } from "./modules/cleanupRegistry";
 
 if (sessionStorage.getItem("_ext_better-goi_pre") === "1") {
@@ -143,7 +144,7 @@ Exterstellar.register({
           key: "linkHealthCheck",
           label: "Check review links for errors and disable broken ones",
           type: "checkbox",
-          default: true,
+          default: false,
         },
         {
           key: "projBtnHealthCheck",
@@ -185,6 +186,12 @@ Exterstellar.register({
         {
           key: "sidebarToggleHotkey",
           label: "Press Tab to toggle the project details sidebar",
+          type: "checkbox",
+          default: true,
+        },
+        {
+          key: "queueMultiSort",
+          label: "Client-side multi-sort on queue table (Click header to sort, Shift+Click to add secondary sort)",
           type: "checkbox",
           default: true,
         },
@@ -258,6 +265,7 @@ Exterstellar.register({
         });
         handleBannedFilter(cfg);
         handleHardwareFilter(cfg);
+        handleQueueMultiSort(cfg);
       }
       if (isReviewDetailPage()) {
         handleReviewDetailPage(cfg);
