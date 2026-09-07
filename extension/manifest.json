@@ -36,6 +36,7 @@
         "plugins/persistent-devlogs.js",
         "plugins/rng-odds.js",
         "plugins/focus-mode.js",
+        "plugins/frozen-notes-expand.js",
         "content.js"
       ],
       "run_at": "document_start"
