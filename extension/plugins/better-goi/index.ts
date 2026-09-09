@@ -141,12 +141,6 @@ Exterstellar.register({
           default: true,
         },
         {
-          key: "linkHealthCheck",
-          label: "Check review links for errors and disable broken ones",
-          type: "checkbox",
-          default: false,
-        },
-        {
           key: "projBtnHealthCheck",
           label:
             "Check Repo/Demo/Readme buttons on reviews and mark dead ones red",
@@ -194,6 +188,12 @@ Exterstellar.register({
           label: "Client-side multi-sort on queue table (Click header to sort, Shift+Click to add secondary sort)",
           type: "checkbox",
           default: true,
+        },
+        {
+          key: "linkHealthCheck",
+          label: "Check dash queue links for errors and disable broken ones",
+          type: "checkbox",
+          default: false,
         },
       ],
     },
@@ -252,7 +252,7 @@ Exterstellar.register({
       );
 
     const onTurboUpdate = () => {
-      void sweepPendingClaims();
+      if (cfg.linkHealthCheck !== false && cfg.linkHealthCheck !== "false") void sweepPendingClaims();
       if (isQueueListPage()) {
         handleQueuePage(cfg);
         handleChartControls(cfg);
