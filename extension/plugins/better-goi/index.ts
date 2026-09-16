@@ -30,6 +30,7 @@ import { handleHardwareFilter } from "./modules/iAintNoHardwareGOI";
 import { handleProjBtnHealthCheck } from "./modules/projsBTNHealhcheck";
 import { handleQueueMultiSort } from "./modules/queueMultiSort";
 import { disconnectTrackedObservers } from "./modules/cleanupRegistry";
+import { teardownViewer } from "./modules/commitViewer";
 
 if (sessionStorage.getItem("_ext_better-goi_pre") === "1") {
   const pre = document.createElement("style");
@@ -132,6 +133,33 @@ Exterstellar.register({
           label: "Show 'Open all commits' button on devlog review panels",
           type: "checkbox",
           default: true,
+        },
+        {
+          key: "grp_commitViewer",
+          label: "In-Platform Commit Viewer (new)",
+          sub: [
+            {
+              key: "githubToken",
+              label: "GitHub PAT (optional, raises rate limit 60→5000/h)",
+              type: "text",
+              placeholder: "ghp_...",
+              default: "",
+            },
+            {
+              key: "gitlabToken",
+              label: "GitLab PAT (optional, for ratelimits)",
+              type: "text",
+              placeholder: "glpat-...",
+              default: "",
+            },
+            {
+              key: "codebergToken",
+              label: "Codeberg PAT (optional, for ratelimits)",
+              type: "text",
+              placeholder: "…",
+              default: "",
+            },
+          ],
         },
         {
           key: "approveAllMissingVerdict",
@@ -285,10 +313,13 @@ Exterstellar.register({
     onTurboUpdate();
 
     return function cleanup() {
+      teardownViewer();
       style?.remove();
       document.removeEventListener("turbo:load", onTurboUpdate);
       document.removeEventListener("turbo:frame-load", onTurboUpdate);
       teardownSidebarHotkey();
+      document.querySelectorAll(".exterstellar-cv-overlay").forEach((n) => n.remove());
+      document.body.style.overflow = "";
       document
         .querySelectorAll(
           [
