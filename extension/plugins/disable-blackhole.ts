@@ -24,15 +24,13 @@ Exterstellar.register({
         .forEach((element) => element.remove());
     };
 
-    // Clean up anything already on the page.
     disableBlackhole();
 
-    // Reapply after SPA/page swaps inject new content.
     const observer = new MutationObserver(() => {
       disableBlackhole();
     });
 
-    observer.observe(document.body, {
+    observer.observe(document.documentElement, {
       childList: true,
       subtree: true,
     });
