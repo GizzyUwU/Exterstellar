@@ -56,6 +56,21 @@ function countPatchStats(patch: string): { adds: number; dels: number } {
   return { adds, dels };
 }
 
+function isWhitespaceOnlyPatch(patch: string): boolean {
+  let adds: string[] = [];
+  let dels: string[] = [];
+  let inHunk = false;
+  for (const l of patch.split("\n")) {
+    if (l.startsWith("@@")) { inHunk = true; continue; }
+    if (!inHunk || l.startsWith("+++") || l.startsWith("---")) continue;
+    if (l.startsWith("+")) adds.push(l.slice(1).replace(/\s+/g, ""));
+    else if (l.startsWith("-")) dels.push(l.slice(1).replace(/\s+/g, ""));
+  }
+  if (adds.length !== dels.length) return false;
+  const sortKey = (arr: string[]) => arr.slice().sort().join("\u0001");
+  return sortKey(adds) === sortKey(dels);
+}
+
 function isBinaryLike(filename: string, patch?: string): boolean {
   if (patch && /Binary files .* differ/.test(patch)) return true;
   const lower = filename.toLowerCase();
@@ -522,6 +537,7 @@ function renderPatchLinesDOM(container: HTMLElement, patch: string): void {
   // clear
   container.textContent = "";
   for (const l of slice) {
+    if (l.startsWith("\\")) continue;
     const lineDiv = document.createElement("div");
     if (l.startsWith("@@")) {
       lineDiv.className = "exterstellar-cv-line--hunk";
@@ -771,13 +787,14 @@ export async function openCommitViewer(commits: ViewerCommit[], repoUrl: string,
         name.style.overflow = "hidden";
         name.style.textOverflow = "ellipsis";
         name.style.whiteSpace = "nowrap";
+        const wsOnly = !!f.patch && isWhitespaceOnlyPatch(f.patch);
         const stats = document.createElement("span");
         stats.className = "exterstellar-cv-stats";
-        stats.textContent = f.binary ? "binary" : f.tooLarge ? "too large" : `+${f.additions} -${f.deletions}`;
+        stats.textContent = f.binary ? "binary" : f.tooLarge ? "too large" : wsOnly ? "whitespace" : `+${f.additions} -${f.deletions}`;
         const toggle = document.createElement("span");
-        toggle.textContent = "▾";
+        toggle.textContent = wsOnly ? "▸" : "▾";
         toggle.style.opacity = "0.6";
-        toggle.style.fontSize = "10px";
+        toggle.style.fontSize = "12px";
         fHead.append(badge, name, stats, toggle);
         fHead.style.cursor = "pointer";
         fHead.title = "Click to collapse/expand";
@@ -809,11 +826,23 @@ export async function openCommitViewer(commits: ViewerCommit[], repoUrl: string,
           msg.append(a);
           patchWrap.append(msg);
         } else if (f.patch) {
+          if (wsOnly) {
+            const msg = document.createElement("div");
+            msg.className = "exterstellar-cv-empty";
+            msg.style.padding = "8px 12px";
+            msg.textContent =
+              "Whitespace-only change — click header to inspect";
+            patchWrap.append(msg);
+          }
           renderPatchLinesDOM(patchWrap, f.patch);
         } else {
           patchWrap.textContent = "(no patch)";
         }
-        let collapsed = false;
+        let collapsed = wsOnly;
+        if (collapsed) {
+          patchWrap.style.display = "none";
+          block.classList.add("exterstellar-cv-fileblock--collapsed");
+        }
         fHead.addEventListener("click", () => {
           collapsed = !collapsed;
           patchWrap.style.display = collapsed ? "none" : "";

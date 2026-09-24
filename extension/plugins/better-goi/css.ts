@@ -351,7 +351,7 @@ const GOI_CSS = `
   }
   .exterstellar-cv-topbar h2 {
     margin: 0;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 700;
     flex: 1;
     white-space: nowrap;
@@ -360,7 +360,7 @@ const GOI_CSS = `
   }
   .exterstellar-cv-topbar small {
     color: var(--color-space-text-muted, #bac2debf);
-    font-size: 11px;
+    font-size: 13px;
     white-space: nowrap;
   }
   .exterstellar-cv-btn {
@@ -369,7 +369,7 @@ const GOI_CSS = `
     border: 1px solid var(--color-space-surface-faint, rgba(255,255,255,0.08));
     background: var(--color-space-bg, #181825);
     color: var(--color-space-text, #cdd6f4);
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
@@ -398,12 +398,12 @@ const GOI_CSS = `
     background: var(--color-set-1-bg, #16122b);
     border-right: 1px solid var(--color-space-surface-faint, rgba(255,255,255,0.08));
     padding: 6px 0;
-    font-size: 11px;
+    font-size: 13px;
   }
   .exterstellar-cv-sidebar-title {
     padding: 4px 10px 6px;
     font-weight: 700;
-    font-size: 10px;
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: .05em;
     color: var(--color-space-text-muted);
@@ -411,7 +411,7 @@ const GOI_CSS = `
   .exterstellar-cv-sidebar-commit {
     padding: 6px 10px 4px;
     font-weight: 600;
-    font-size: 11px;
+    font-size: 13px;
     color: var(--color-space-text);
     cursor: pointer;
     white-space: nowrap;
@@ -428,11 +428,11 @@ const GOI_CSS = `
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--color-space-text-muted);
-    font-size: 11px;
+    font-size: 13px;
   }
   .exterstellar-cv-sidebar-file:hover { color: var(--color-space-text); background: rgba(255,255,255,.04); }
   .exterstellar-cv-sidebar-file--active { color: var(--color-space-text); background: rgba(255,255,255,.06); }
-  .exterstellar-cv-sidebar-empty { padding: 8px 10px; color: var(--color-space-text-muted); font-size: 11px; font-style: italic; }
+  .exterstellar-cv-sidebar-empty { padding: 8px 10px; color: var(--color-space-text-muted); font-size: 13px; font-style: italic; }
   .exterstellar-cv-body {
     flex: 1;
     min-width: 0;
@@ -455,7 +455,7 @@ const GOI_CSS = `
   }
   .exterstellar-cv-commit-msg {
     font-weight: 700;
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.4;
     color: var(--color-space-text, #cdd6f4);
     white-space: nowrap;
@@ -463,7 +463,7 @@ const GOI_CSS = `
     text-overflow: ellipsis;
   }
   .exterstellar-cv-commit-meta {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--color-space-text-muted, #bac2debf);
     margin-top: 2px;
     display: flex;
@@ -482,13 +482,13 @@ const GOI_CSS = `
     gap: 8px;
     padding: 6px 12px;
     background: rgba(255,255,255,0.03);
-    font-size: 11px;
+    font-size: 13px;
     user-select: none;
   }
   .exterstellar-cv-badge {
     padding: 1px 6px;
     border-radius: 4px;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     border: 1px solid transparent;
@@ -497,7 +497,7 @@ const GOI_CSS = `
   .exterstellar-cv-badge--added { background: rgba(166,227,161,0.14); color: #a6e3a1; border-color: rgba(166,227,161,0.2); }
   .exterstellar-cv-badge--deleted { background: rgba(243,139,168,0.14); color: #f38ba8; border-color: rgba(243,139,168,0.2); }
   .exterstellar-cv-badge--renamed { background: rgba(249,226,175,0.14); color: #f9e2af; border-color: rgba(249,226,175,0.2); }
-  .exterstellar-cv-stats { color: var(--color-space-text-muted); font-size: 11px; margin-left: auto; }
+  .exterstellar-cv-stats { color: var(--color-space-text-muted); font-size: 13px; margin-left: auto; }
   .exterstellar-cv-patch {
     margin: 0;
     padding: 8px 12px;
@@ -505,7 +505,7 @@ const GOI_CSS = `
     word-break: break-word;
     overflow-x: auto;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 11.5px;
+    font-size: 13px;
     line-height: 1.5;
     background: var(--color-space-bg, #181825);
   }
@@ -519,12 +519,12 @@ const GOI_CSS = `
   .exterstellar-cv-tok-num { color: #fab387; }
   .exterstellar-cv-tok-fn { color: #89b4fa; }
   .exterstellar-cv-tok-type { color: #f9e2af; }
-  .exterstellar-cv-ln { user-select: none; opacity: .35; display: inline-block; min-width: 28px; text-align: right; padding-right: 10px; font-size: 10.5px; }
+  .exterstellar-cv-ln { user-select: none; opacity: .35; display: inline-block; min-width: 28px; text-align: right; padding-right: 10px; font-size: 12.5px; }
   .exterstellar-cv-empty {
     padding: 18px 14px;
     text-align: center;
     color: var(--color-space-text-muted);
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.6;
   }
   .exterstellar-cv-empty a { color: var(--color-space-accent, #cba6f7); }
@@ -535,7 +535,7 @@ const GOI_CSS = `
     padding: 7px 12px;
     border-top: 1px solid var(--color-space-surface-faint, rgba(255,255,255,0.08));
     background: var(--color-set-1-bg, #16122b);
-    font-size: 11px;
+    font-size: 13px;
     color: var(--color-space-text-muted);
   }
   .exterstellar-cv-footer kbd {
@@ -544,7 +544,7 @@ const GOI_CSS = `
     border: 1px solid var(--color-space-surface-faint, rgba(255,255,255,0.15));
     border-radius: 4px;
     font-family: inherit;
-    font-size: 10px;
+    font-size: 12px;
     background: var(--color-space-bg, #181825);
   }
   /* devlog panel buttons — compact, not huge */
