@@ -32,6 +32,7 @@
         "plugins/sidebar-reorder.js",
         "plugins/themes.js",
         "plugins/md-preview.js",
+        "plugins/adblock.js",
         "plugins/devlog-changelog.js",
         "plugins/shop-goals-enhanced.js",
         "plugins/persistent-devlogs.js",
