@@ -1,4 +1,5 @@
 import type { Cfg } from "./types";
+import { decrementSummaryCount, incrementSummaryCount } from "./summaryCount";
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -28,6 +29,25 @@ function getActionLink(row: HTMLTableRowElement): HTMLAnchorElement | null {
     actionsCell?.querySelector<HTMLAnchorElement>("a.ysws-queue__view-btn") ??
     null
   );
+}
+
+function getProjectLink(row: HTMLTableRowElement): HTMLAnchorElement | null {
+  const projectCell = row.querySelector<HTMLTableCellElement>(
+    'td[data-label="Project"]',
+  );
+  return projectCell?.querySelector<HTMLAnchorElement>("a") ?? null;
+}
+
+function flagRowBroken(row: HTMLTableRowElement): void {
+  if (row.hasAttribute("data-exterstellar-count-subtracted")) return;
+  row.setAttribute("data-exterstellar-count-subtracted", "1");
+  decrementSummaryCount(1);
+}
+
+function unflagRowBroken(row: HTMLTableRowElement): void {
+  if (!row.hasAttribute("data-exterstellar-count-subtracted")) return;
+  row.removeAttribute("data-exterstellar-count-subtracted");
+  incrementSummaryCount(1);
 }
 
 export async function probeLinkStatus(
@@ -155,7 +175,10 @@ function disableBrokenLink(
   link.classList.add("exterstellar-better-goi-broken-link");
   link.setAttribute("role", "button");
   link.title = formatStatusTooltip(status, statusText);
-  link.textContent = "Error"
+  if (link.dataset.originalText === undefined) {
+    link.dataset.originalText = link.textContent ?? "";
+  }
+  link.textContent = "Error";
 }
 
 function restoreBrokenLink(link: HTMLAnchorElement) {
@@ -165,54 +188,19 @@ function restoreBrokenLink(link: HTMLAnchorElement) {
   link.removeAttribute("aria-disabled");
   link.removeAttribute("role");
   link.removeAttribute("title");
+  if (link.dataset.originalText !== undefined) {
+    link.textContent = link.dataset.originalText;
+    delete link.dataset.originalText;
+  }
   if (link.dataset.originalHref) {
     link.href = link.dataset.originalHref;
     delete link.dataset.originalHref;
   }
 }
 
-function extractReviewId(url: string): string | null {
-  const match = url.match(/\/admin\/certification\/review\/(\d+)/);
+function extractProjectId(url: string): string | null {
+  const match = url.match(/\/admin\/projects\/(\d+)/);
   return match?.[1] ?? null;
-}
-
-function getCsrfToken(): string | null {
-  const meta = document.querySelector<HTMLMetaElement>(
-    'meta[name="csrf-token"]',
-  );
-  return meta?.content ?? null;
-}
-
-async function releaseReviewClaim(reviewId: string): Promise<boolean> {
-  const csrfToken = getCsrfToken();
-  const body = new URLSearchParams();
-  body.set("_method", "delete");
-  if (csrfToken) body.set("authenticity_token", csrfToken);
-
-  try {
-    await waitForRequestSlot();
-    const res = await fetch(`/admin/certification/review/${reviewId}/claim`, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
-      },
-      body: body.toString(),
-    });
-
-    if (res.status === 429) {
-      registerRateLimited(res);
-      return false;
-    }
-    registerRequestOk();
-
-    if (res.ok) return true;
-    if (res.status === 404 || res.status === 410) return true;
-    return false;
-  } catch (e) {
-    return false;
-  }
 }
 
 interface LinkHealthCacheEntry {
@@ -255,7 +243,7 @@ function setCachedLinkHealth(
   saveLinkHealthCache(cache);
 }
 
-function pruneLinkHealthCache(currentReviewIds: Set<string>) {
+function pruneLinkHealthCache(currentKeys: Set<string>) {
   const cache = loadLinkHealthCache();
   const now = Date.now();
   let changed = false;
@@ -263,8 +251,8 @@ function pruneLinkHealthCache(currentReviewIds: Set<string>) {
   for (const key of Object.keys(cache)) {
     const entry = cache[key]!;
     const expired = now - entry.checkedAt > 24 * 60 * 60 * 1000;
-    const gone = !currentReviewIds.has(key);
-    if (expired || (currentReviewIds.size > 0 && gone && looksLikeReviewId(key))) {
+    const gone = !currentKeys.has(key);
+    if (expired || (currentKeys.size > 0 && gone)) {
       delete cache[key];
       changed = true;
     }
@@ -273,110 +261,33 @@ function pruneLinkHealthCache(currentReviewIds: Set<string>) {
   if (changed) saveLinkHealthCache(cache);
 }
 
-function looksLikeReviewId(key: string): boolean {
-  return /^\d+$/.test(key);
-}
 
-const PENDING_CLAIMS_KEY = "exterstellar-better-goi-pending-claims";
-const PENDING_CLAIM_MAX_AGE_MS = 48 * 60 * 60 * 1000; 
-
-interface PendingClaimEntry {
-  claimedAt: number;
-}
-
-function loadPendingClaims(): Record<string, PendingClaimEntry> {
-  try {
-    const raw = localStorage.getItem(PENDING_CLAIMS_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function savePendingClaims(claims: Record<string, PendingClaimEntry>) {
-  try {
-    localStorage.setItem(PENDING_CLAIMS_KEY, JSON.stringify(claims));
-  } catch (e) {}
-}
-
-function markPendingClaim(reviewId: string) {
-  const claims = loadPendingClaims();
-  if (claims[reviewId]) return;
-  claims[reviewId] = { claimedAt: Date.now() };
-  savePendingClaims(claims);
-}
-
-function clearPendingClaim(reviewId: string) {
-  const claims = loadPendingClaims();
-  if (!claims[reviewId]) return;
-  delete claims[reviewId];
-  savePendingClaims(claims);
-}
-
-let pendingClaimsSweepInFlight = false;
-
-export async function sweepPendingClaims(): Promise<void> {
-  if (pendingClaimsSweepInFlight) return;
-
-  const claims = loadPendingClaims();
-  const reviewIds = Object.keys(claims);
-  if (!reviewIds.length) return;
-
-  pendingClaimsSweepInFlight = true;
-  try {
-    const now = Date.now();
-    const toRelease: string[] = [];
-
-    for (const reviewId of reviewIds) {
-      const entry = claims[reviewId]!;
-      if (now - entry.claimedAt > PENDING_CLAIM_MAX_AGE_MS) {
-        clearPendingClaim(reviewId);
-        continue;
-      }
-      toRelease.push(reviewId);
-    }
-
-    if (!toRelease.length) return;
-
-    await runWithConcurrency(toRelease, 2, async (reviewId) => {
-      const handled = await releaseReviewClaim(reviewId);
-      if (handled) clearPendingClaim(reviewId);
-    });
-  } finally {
-    pendingClaimsSweepInFlight = false;
-  }
-}
 
 async function checkRowLinkHealth(row: HTMLTableRowElement) {
   if (row.hasAttribute("data-exterstellar-link-health-checked")) return;
   row.setAttribute("data-exterstellar-link-health-checked", "1");
 
-  const link = getActionLink(row);
-  if (!link?.href) return;
+  const projectLink = getProjectLink(row);
+  if (!projectLink?.href) return;
+  const actionLink = getActionLink(row);
+  if (!actionLink) return;
 
-  const reviewId = extractReviewId(link.href);
-  const cacheKey = reviewId ?? link.href;
+  const cacheKey = projectLink.href;
 
   const cached = getCachedLinkHealth(cacheKey);
   if (cached) {
-    if (cached.status >= 400) disableBrokenLink(link, cached.status, cached.statusText);
+    if (cached.status >= 400) {
+      disableBrokenLink(actionLink, cached.status, cached.statusText);
+      flagRowBroken(row);
+    }
     return;
   }
 
-  if (reviewId) markPendingClaim(reviewId);
-
-  const result = await probeLinkStatus(link.href);
+  const result = await probeLinkStatus(projectLink.href);
 
   if (result?.status === 429) {
     row.removeAttribute("data-exterstellar-link-health-checked");
     return;
-  }
-
-  if (reviewId) {
-    const released = await releaseReviewClaim(reviewId);
-    if (released) clearPendingClaim(reviewId);
   }
 
   if (!result) return;
@@ -384,7 +295,8 @@ async function checkRowLinkHealth(row: HTMLTableRowElement) {
   setCachedLinkHealth(cacheKey, result.status, result.statusText);
 
   if (result.status >= 400) {
-    disableBrokenLink(link, result.status, result.statusText);
+    disableBrokenLink(actionLink, result.status, result.statusText);
+    flagRowBroken(row);
   }
 }
 
@@ -419,6 +331,7 @@ function resetLinkHealthChecks(table: Element) {
     row.removeAttribute("data-exterstellar-link-health-checked");
     const link = getActionLink(row);
     if (link) restoreBrokenLink(link);
+    unflagRowBroken(row);
   }
 }
 
@@ -431,8 +344,6 @@ export function handleLinkHealthCheck(cfg: Cfg) {
     lastLinkHealthCheckCfg = null;
     return;
   }
-
-  void sweepPendingClaims();
 
   const table = document.querySelector(".ysws-queue__table-container table");
   if (!table) return;
@@ -449,15 +360,15 @@ export function handleLinkHealthCheck(cfg: Cfg) {
     table.querySelectorAll("tbody tr"),
   ) as HTMLTableRowElement[];
 
-  const allReviewIds = new Set(
+  const allProjectLinks = new Set(
     rows
       .map((row) => {
-        const link = getActionLink(row);
-        return link?.href ? extractReviewId(link.href) : null;
+        const link = getProjectLink(row);
+        return link?.href ?? null;
       })
-      .filter((id): id is string => !!id),
+      .filter((href): href is string => !!href),
   );
-  pruneLinkHealthCache(allReviewIds);
+  pruneLinkHealthCache(allProjectLinks);
 
   const firstN = rows.slice(0, 30);
 

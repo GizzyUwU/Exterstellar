@@ -1,5 +1,6 @@
 import type { Cfg } from "./types";
 import { trackObserver } from "./cleanupRegistry";
+import { decrementSummaryCount } from "./summaryCount";
 
 function isRowHardware(row: HTMLTableRowElement): boolean {
   const typeCell = row.querySelector(
@@ -41,7 +42,7 @@ function observeForHardwareRows(table: Element) {
     if (!shouldCheck) return;
 
     observer.disconnect();
-    removeHardwareRows(table);
+    decrementSummaryCount(removeHardwareRows(table));
     observer.observe(tbody, { childList: true });
   }));
 
@@ -56,7 +57,7 @@ export function handleHardwareFilter(cfg: Cfg) {
   );
   if (!table) return;
 
-  removeHardwareRows(table);
+  decrementSummaryCount(removeHardwareRows(table));
   if (table.hasAttribute("data-exterstellar-hide-hardware-init")) return;
   table.setAttribute("data-exterstellar-hide-hardware-init", "1");
   observeForHardwareRows(table);

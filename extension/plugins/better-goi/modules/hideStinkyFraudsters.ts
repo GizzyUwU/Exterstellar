@@ -1,5 +1,6 @@
 import type { Cfg } from "./types";
 import { trackObserver } from "./cleanupRegistry";
+import { decrementSummaryCount } from "./summaryCount";
 
 function isRowBanned(row: HTMLTableRowElement): boolean {
   const integrityCell = row.querySelector(
@@ -41,7 +42,7 @@ function observeForBannedRows(table: Element) {
     if (!shouldCheck) return;
 
     observer.disconnect();
-    removeBannedRows(table);
+    decrementSummaryCount(removeBannedRows(table));
     observer.observe(tbody, { childList: true });
   }));
 
@@ -56,7 +57,7 @@ export function handleBannedFilter(cfg: Cfg) {
   );
   if (!table) return;
 
-  removeBannedRows(table);
+  decrementSummaryCount(removeBannedRows(table));
   if (table.hasAttribute("data-exterstellar-hide-banned-init")) return;
   table.setAttribute("data-exterstellar-hide-banned-init", "1");
   observeForBannedRows(table);
