@@ -18,7 +18,7 @@ import {
   handleJustificationAutocomplete,
   teardownJustificationAutocomplete,
 } from "./modules/autoGoipletion";
-import { handleLinkHealthCheck, sweepPendingClaims } from "./modules/linkHealth";
+import { handleLinkHealthCheck } from "./modules/linkHealth";
 import {
   handleSidebarToggleHotkey,
   teardownSidebarHotkey,
@@ -280,7 +280,6 @@ Exterstellar.register({
       );
 
     const onTurboUpdate = () => {
-      if (cfg.linkHealthCheck !== false && cfg.linkHealthCheck !== "false") void sweepPendingClaims();
       if (isQueueListPage()) {
         handleQueuePage(cfg);
         handleChartControls(cfg);
